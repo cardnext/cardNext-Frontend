@@ -10,8 +10,13 @@ import {
   KeyRound,
   RefreshCw,
   AlertTriangle,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  EyeOff,
+  Clock
 } from "lucide-react";
+
+const SIGNUP_CODE_TTL_SECONDS = 300; // 5 minutes
 
 const resolveApiBaseUrl = () => {
   try {
@@ -55,6 +60,13 @@ const formatLocalClock = (dateObj) => {
     const hour12 = hours % 12 || 12;
     return `${hour12}:${minutes}`;
   }
+};
+
+const formatCountdown = (totalSeconds) => {
+  const safe = Math.max(0, Number(totalSeconds) || 0);
+  const mins = Math.floor(safe / 60);
+  const secs = safe % 60;
+  return `${mins}:${String(secs).padStart(2, "0")}`;
 };
 
 function HoverLetters({ text, className = "", registerNode }) {
@@ -109,11 +121,13 @@ export default function AuthPage({ onLoginSuccess }) {
   const [isSignUp, setIsSignUp] = useState(false);
   const [viewState, setViewState] = useState("form"); // "form" | "verify" | "forgot" | "reset-code" | "direct-reset"
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [codeSecondsLeft, setCodeSecondsLeft] = useState(SIGNUP_CODE_TTL_SECONDS);
+  const [verifiedResetCode, setVerifiedResetCode] = useState("");
   const [liveTime, setLiveTime] = useState(() => formatLocalClock(new Date()));
 
-  // Seamless card-level pointer state + rAF smoothing for letters and faded orb
   const phoneCardRef = useRef(null);
   const orbRef = useRef(null);
   const pointerRef = useRef({ x: null, y: null, active: false });
@@ -121,11 +135,10 @@ export default function AuthPage({ onLoginSuccess }) {
   const letterNodesRef = useRef(new Set());
   const letterStatesRef = useRef(new Map());
 
-  // Segmented 6-digit OTP state
   const [otpDigits, setOtpDigits] = useState(["", "", "", "", "", ""]);
   const otpRefs = useRef([]);
+  const lastAutoSubmittedOtpRef = useRef("");
 
-  // Exact backend fields: signup uses { fullName, email, password }, login uses { email, password }
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -146,13 +159,13 @@ export default function AuthPage({ onLoginSuccess }) {
     }
   }, []);
 
-  // Sync clock with user's local browsing location/device clock
   useEffect(() => {
     const syncClock = () => setLiveTime(formatLocalClock(new Date()));
     syncClock();
 
     const now = new Date();
-    const msUntilNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+    const msUntilNextMinute =
+      (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
     let intervalId = null;
 
     const timeoutId = setTimeout(() => {
@@ -175,13 +188,22 @@ export default function AuthPage({ onLoginSuccess }) {
   }, [resendCooldown]);
 
   useEffect(() => {
-    if (viewState === "verify" || viewState === "reset-code") {
-      setOtpDigits(["", "", "", "", "", ""]);
-      setTimeout(() => otpRefs.current[0]?.focus(), 80);
-    }
-  }, [viewState]);
+    if (viewState !== "verify") return;
+    if (codeSecondsLeft <= 0) return;
 
-  // Smooth continuous rAF animation loop for both letter enlargement and faded orb dodge
+    const timer = setInterval(() => {
+      setCodeSecondsLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [viewState, codeSecondsLeft]);
+
   useEffect(() => {
     let rafId = null;
 
@@ -189,7 +211,6 @@ export default function AuthPage({ onLoginSuccess }) {
       const card = phoneCardRef.current;
       const pointer = pointerRef.current;
 
-      // 1. Faded orb smooth dodge
       if (card && orbRef.current) {
         let targetX = 0;
         let targetY = 0;
@@ -221,7 +242,6 @@ export default function AuthPage({ onLoginSuccess }) {
         orbRef.current.style.transform = `translate3d(${curr.x.toFixed(2)}px, ${curr.y.toFixed(2)}px, 0)`;
       }
 
-      // 2. Seamless letter enlargement interpolation
       const influenceRadius = 46;
       for (const el of Array.from(letterNodesRef.current)) {
         if (!el || !el.isConnected) {
@@ -269,6 +289,13 @@ export default function AuthPage({ onLoginSuccess }) {
     };
   }, []);
 
+  const enterOtpView = useCallback((targetView) => {
+    lastAutoSubmittedOtpRef.current = "";
+    setOtpDigits(["", "", "", "", "", ""]);
+    setViewState(targetView);
+    setTimeout(() => otpRefs.current[0]?.focus(), 80);
+  }, []);
+
   const handleCardMouseMove = (e) => {
     pointerRef.current = {
       x: e.clientX,
@@ -300,8 +327,9 @@ export default function AuthPage({ onLoginSuccess }) {
   };
 
   const passwordScore = Object.values(passwordCriteria).filter(Boolean).length;
+  const newPasswordScore = Object.values(newPasswordCriteria).filter(Boolean).length;
   const isPasswordStrong = passwordScore === 4;
-  const isNewPasswordStrong = Object.values(newPasswordCriteria).every(Boolean);
+  const isNewPasswordStrong = newPasswordScore === 4;
 
   const handleKeyDownCheck = (e) => {
     if (e.getModifierState) {
@@ -326,6 +354,7 @@ export default function AuthPage({ onLoginSuccess }) {
       const updated = [...otpDigits];
       updated[index] = "";
       setOtpDigits(updated);
+      lastAutoSubmittedOtpRef.current = "";
       return;
     }
 
@@ -342,12 +371,16 @@ export default function AuthPage({ onLoginSuccess }) {
   const handleOtpKeyDown = (index, e) => {
     if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
       otpRefs.current[index - 1]?.focus();
+      lastAutoSubmittedOtpRef.current = "";
     }
   };
 
   const handleOtpPaste = (e) => {
     e.preventDefault();
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    const pasted = e.clipboardData
+      .getData("text")
+      .replace(/\D/g, "")
+      .slice(0, 6);
     if (!pasted) return;
     const updated = ["", "", "", "", "", ""];
     pasted.split("").forEach((char, idx) => {
@@ -361,25 +394,93 @@ export default function AuthPage({ onLoginSuccess }) {
   const handleResendCode = async () => {
     if (resendCooldown > 0) return;
     setResendCooldown(60);
+    setErrors({});
     setSuccessMessage("New code sent.");
+    lastAutoSubmittedOtpRef.current = "";
+
+    if (viewState === "verify") {
+      setCodeSecondsLeft(SIGNUP_CODE_TTL_SECONDS);
+    }
+    if (viewState === "reset-code") {
+      setVerifiedResetCode("");
+    }
+
     try {
       const endpoint =
         viewState === "reset-code"
           ? `${API_BASE_URL}/api/auth/forgot-password`
           : `${API_BASE_URL}/api/auth/resend-verification`;
-      await fetch(endpoint, {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: formData.email.trim() })
       });
+      const data = await res.json().catch(() => ({}));
+      if (
+        res.ok &&
+        viewState === "verify" &&
+        typeof data.expiresInSeconds === "number"
+      ) {
+        setCodeSecondsLeft(data.expiresInSeconds);
+      }
     } catch {
       // Cooldown still active
     }
   };
 
-  const validate = (type) => {
+  const renderEyeButton = (isVisible, onToggle, label) => (
+    <button
+      type="button"
+      className="cn-eye-btn"
+      onClick={onToggle}
+      aria-label={label}
+      title={label}
+    >
+      {isVisible ? <EyeOff size={15} /> : <Eye size={15} />}
+    </button>
+  );
+
+  const renderStrengthRules = (value, criteria, score) => {
+    if (!value || value.length === 0) return null;
+    return (
+      <div className="cn-pass-rules">
+        <div className="cn-strength-bars">
+          {[1, 2, 3, 4].map((level) => (
+            <span
+              key={level}
+              className={`cn-strength-seg ${
+                score >= level
+                  ? score <= 2
+                    ? "weak"
+                    : score === 3
+                    ? "medium"
+                    : "strong"
+                  : ""
+              }`}
+            />
+          ))}
+        </div>
+        <div className="cn-rules-grid">
+          <span className={criteria.length ? "ok" : ""}>
+            {criteria.length ? <Check size={10} /> : <X size={10} />} 8+ chars
+          </span>
+          <span className={criteria.uppercase ? "ok" : ""}>
+            {criteria.uppercase ? <Check size={10} /> : <X size={10} />} Uppercase
+          </span>
+          <span className={criteria.number ? "ok" : ""}>
+            {criteria.number ? <Check size={10} /> : <X size={10} />} Number
+          </span>
+          <span className={criteria.special ? "ok" : ""}>
+            {criteria.special ? <Check size={10} /> : <X size={10} />} Symbol
+          </span>
+        </div>
+      </div>
+    );
+  };
+
+  const validate = (type, customOtp = null) => {
     const newErrors = {};
-    const otpString = otpDigits.join("");
+    const otpString = customOtp !== null ? customOtp : otpDigits.join("");
     const trimmedEmail = formData.email.trim();
 
     if (type === "forgot") {
@@ -399,6 +500,10 @@ export default function AuthPage({ onLoginSuccess }) {
     }
 
     if (type === "direct-reset") {
+      const activeCode = verifiedResetCode || otpString;
+      if (!activeCode || activeCode.length < 6) {
+        newErrors.newPassword = "Enter the 6-digit reset code first";
+      }
       if (!isNewPasswordStrong) {
         newErrors.newPassword = "Password must meet all 4 strength rules";
       }
@@ -410,7 +515,10 @@ export default function AuthPage({ onLoginSuccess }) {
     }
 
     if (type === "verify") {
-      if (otpString.length < 6) {
+      if (codeSecondsLeft <= 0) {
+        newErrors.verificationCode =
+          "Code expired. Click Resend code for a new one.";
+      } else if (otpString.length < 6) {
         newErrors.verificationCode = "Enter all 6 verification digits";
       }
       setErrors(newErrors);
@@ -440,6 +548,101 @@ export default function AuthPage({ onLoginSuccess }) {
     return Object.keys(newErrors).length === 0;
   };
 
+  const verifyResetCodeRequest = useCallback(
+    async (codeToVerify) => {
+      const trimmedEmail = formData.email.trim();
+      if (!validate("reset-code", codeToVerify)) return;
+      setIsSubmitting(true);
+      setErrors({});
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/auth/verify-reset-code`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: trimmedEmail, code: codeToVerify })
+        });
+        const data = await res.json();
+        setIsSubmitting(false);
+        if (res.ok) {
+          setVerifiedResetCode(codeToVerify);
+          setViewState("direct-reset");
+          setSuccessMessage("");
+        } else {
+          setVerifiedResetCode("");
+          setErrors({ resetCode: data.message || "Verification code is invalid" });
+        }
+      } catch {
+        setIsSubmitting(false);
+        setErrors({ resetCode: "Unable to connect to server" });
+      }
+    },
+    [formData.email] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const verifyEmailCodeRequest = useCallback(
+    async (codeToVerify) => {
+      const trimmedEmail = formData.email.trim();
+      if (!validate("verify", codeToVerify)) return;
+      setIsSubmitting(true);
+      setErrors({});
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/auth/verify-email`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: trimmedEmail, code: codeToVerify })
+        });
+        const data = await res.json();
+        setIsSubmitting(false);
+        if (res.ok && data.user) {
+          localStorage.setItem("userId", data.user.id);
+          localStorage.setItem("cardnext_user_email", data.user.email);
+          localStorage.setItem("cardnext_user_name", data.user.name);
+          if (data.token) localStorage.setItem("cardnext_token", data.token);
+
+          if (onLoginSuccess) {
+            onLoginSuccess({
+              id: data.user.id,
+              name: data.user.name,
+              email: data.user.email
+            });
+          }
+        } else {
+          setErrors({
+            verificationCode: data.message || "Verification code is invalid"
+          });
+        }
+      } catch {
+        setIsSubmitting(false);
+        setErrors({ verificationCode: "Unable to connect to server" });
+      }
+    },
+    [formData.email, codeSecondsLeft, onLoginSuccess] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  useEffect(() => {
+    const otpString = otpDigits.join("");
+    if (otpString.length !== 6) return;
+    if (isSubmitting) return;
+
+    const submissionKey = `${viewState}:${otpString}`;
+    if (lastAutoSubmittedOtpRef.current === submissionKey) return;
+
+    if (viewState === "verify") {
+      if (codeSecondsLeft <= 0) return;
+      lastAutoSubmittedOtpRef.current = submissionKey;
+      verifyEmailCodeRequest(otpString);
+    } else if (viewState === "reset-code") {
+      lastAutoSubmittedOtpRef.current = submissionKey;
+      verifyResetCodeRequest(otpString);
+    }
+  }, [
+    otpDigits,
+    viewState,
+    isSubmitting,
+    codeSecondsLeft,
+    verifyEmailCodeRequest,
+    verifyResetCodeRequest
+  ]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const otpString = otpDigits.join("");
@@ -459,7 +662,8 @@ export default function AuthPage({ onLoginSuccess }) {
         const data = await res.json();
         setIsSubmitting(false);
         if (res.ok) {
-          setViewState("reset-code");
+          setVerifiedResetCode("");
+          enterOtpView("reset-code");
           setResendCooldown(60);
           setSuccessMessage("Code sent to your email.");
         } else {
@@ -473,54 +677,50 @@ export default function AuthPage({ onLoginSuccess }) {
     }
 
     if (viewState === "reset-code") {
-      if (!validate("reset-code")) return;
-      setIsSubmitting(true);
-      setErrors({});
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/auth/verify-reset-code`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: trimmedEmail, code: otpString })
-        });
-        const data = await res.json();
-        setIsSubmitting(false);
-        if (res.ok) {
-          setViewState("direct-reset");
-          setSuccessMessage("");
-        } else {
-          setErrors({ resetCode: data.message || "Verification code is invalid" });
-        }
-      } catch {
-        setIsSubmitting(false);
-        setErrors({ resetCode: "Unable to connect to server" });
-      }
+      await verifyResetCodeRequest(otpString);
       return;
     }
 
     if (viewState === "direct-reset") {
       if (!validate("direct-reset")) return;
+      const codeToUse = verifiedResetCode || otpString;
       setIsSubmitting(true);
       setErrors({});
       try {
-        const res = await fetch(`${API_BASE_URL}/api/auth/direct-reset-password`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: trimmedEmail,
-            code: otpString,
-            newPassword: formData.newPassword
-          })
-        });
+        const res = await fetch(
+          `${API_BASE_URL}/api/auth/direct-reset-password`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: trimmedEmail,
+              code: codeToUse,
+              newPassword: formData.newPassword
+            })
+          }
+        );
         const data = await res.json();
         setIsSubmitting(false);
         if (res.ok) {
           setSuccessMessage(data.message || "Password updated.");
           setTimeout(() => {
             setViewState("form");
+            setIsSignUp(false);
+            setVerifiedResetCode("");
+            lastAutoSubmittedOtpRef.current = "";
+            setOtpDigits(["", "", "", "", "", ""]);
+            setFormData((prev) => ({
+              ...prev,
+              password: "",
+              newPassword: "",
+              confirmNewPassword: ""
+            }));
             setSuccessMessage("");
           }, 1800);
         } else {
-          setErrors({ newPassword: data.message || "Could not update password" });
+          setErrors({
+            newPassword: data.message || "Could not update password"
+          });
         }
       } catch {
         setIsSubmitting(false);
@@ -530,37 +730,7 @@ export default function AuthPage({ onLoginSuccess }) {
     }
 
     if (viewState === "verify") {
-      if (!validate("verify")) return;
-      setIsSubmitting(true);
-      setErrors({});
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/auth/verify-email`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: trimmedEmail, code: otpString })
-        });
-        const data = await res.json();
-        setIsSubmitting(false);
-        if (res.ok && data.user) {
-          localStorage.setItem("userId", data.user.id);
-          localStorage.setItem("cardnext_user_email", data.user.email);
-          localStorage.setItem("cardnext_user_name", data.user.name);
-          if (data.token) localStorage.setItem("cardnext_token", data.token);
-
-          if (onLoginSuccess) {
-            onLoginSuccess({
-              id: data.user.id,
-              name: data.user.name,
-              email: data.user.email
-            });
-          }
-        } else {
-          setErrors({ verificationCode: data.message || "Verification code is invalid" });
-        }
-      } catch {
-        setIsSubmitting(false);
-        setErrors({ verificationCode: "Unable to connect to server" });
-      }
+      await verifyEmailCodeRequest(otpString);
       return;
     }
 
@@ -590,17 +760,34 @@ export default function AuthPage({ onLoginSuccess }) {
 
       if (!response.ok) {
         if (data.requiresVerification) {
-          setViewState("verify");
+          setCodeSecondsLeft(
+            typeof data.expiresInSeconds === "number"
+              ? data.expiresInSeconds
+              : SIGNUP_CODE_TTL_SECONDS
+          );
+          enterOtpView("verify");
           setResendCooldown(60);
+          setSuccessMessage(
+            data.message ||
+              "Enter the 6-digit verification code sent to your email."
+          );
           return;
         }
         setErrors({ email: data.message || "Invalid email or password" });
         return;
       }
 
-      if (isSignUp && data.requiresVerification) {
-        setViewState("verify");
+      if (isSignUp || data.requiresVerification) {
+        setCodeSecondsLeft(
+          typeof data.expiresInSeconds === "number"
+            ? data.expiresInSeconds
+            : SIGNUP_CODE_TTL_SECONDS
+        );
+        enterOtpView("verify");
         setResendCooldown(60);
+        setSuccessMessage(
+          data.message || "Code sent! Enter the 6-digit verification code."
+        );
         return;
       }
 
@@ -633,6 +820,7 @@ export default function AuthPage({ onLoginSuccess }) {
   const goToSignUp = () => {
     setIsSignUp(true);
     setViewState("form");
+    setVerifiedResetCode("");
     setErrors({});
     setSuccessMessage("");
   };
@@ -640,42 +828,90 @@ export default function AuthPage({ onLoginSuccess }) {
   const goToLogin = () => {
     setIsSignUp(false);
     setViewState("form");
+    setVerifiedResetCode("");
     setErrors({});
     setSuccessMessage("");
   };
 
-  const renderOtpInputs = (errorKey) => (
-    <div className="cn-field-group">
-      <div className="otp-grid" onPaste={handleOtpPaste}>
-        {otpDigits.map((digit, idx) => (
-          <input
-            key={idx}
-            ref={(el) => (otpRefs.current[idx] = el)}
-            type="text"
-            inputMode="numeric"
-            maxLength={1}
-            value={digit}
-            onChange={(e) => handleOtpChange(idx, e.target.value)}
-            onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-            className={`otp-box ${digit ? "filled" : ""} ${errors[errorKey] ? "has-error" : ""}`}
-            aria-label={`Digit ${idx + 1}`}
-          />
-        ))}
+  const handleBackClick = () => {
+    if (viewState === "reset-code") {
+      setVerifiedResetCode("");
+      setViewState("forgot");
+      setErrors({});
+      setSuccessMessage("");
+      return;
+    }
+    if (viewState === "direct-reset") {
+      setViewState("reset-code");
+      setErrors({});
+      setSuccessMessage("");
+      return;
+    }
+    if (viewState === "forgot") {
+      setViewState("form");
+      setIsSignUp(false);
+      setErrors({});
+      setSuccessMessage("");
+      return;
+    }
+    if (viewState === "verify") {
+      setViewState("form");
+      setErrors({});
+      setSuccessMessage("");
+      return;
+    }
+    goToLogin();
+  };
+
+  const renderOtpInputs = (errorKey, showExpiryTimer = false) => {
+    const isExpired = showExpiryTimer && codeSecondsLeft <= 0;
+
+    return (
+      <div className="cn-field-group">
+        {showExpiryTimer && (
+          <div className={`cn-expiry-bar ${isExpired ? "expired" : ""}`}>
+            <Clock size={12} />
+            <span>
+              {isExpired
+                ? "Code expired"
+                : `Code expires in ${formatCountdown(codeSecondsLeft)}`}
+            </span>
+          </div>
+        )}
+        <div className="otp-grid" onPaste={handleOtpPaste}>
+          {otpDigits.map((digit, idx) => (
+            <input
+              key={idx}
+              ref={(el) => (otpRefs.current[idx] = el)}
+              type="text"
+              inputMode="numeric"
+              maxLength={1}
+              value={digit}
+              disabled={isExpired || isSubmitting}
+              onChange={(e) => handleOtpChange(idx, e.target.value)}
+              onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+              className={`otp-box ${digit ? "filled" : ""} ${
+                errors[errorKey] ? "has-error" : ""
+              }`}
+              aria-label={`Digit ${idx + 1}`}
+            />
+          ))}
+        </div>
+        <ErrorBadge message={errors[errorKey]} centered />
+        <div className="resend-row">
+          <button
+            type="button"
+            className="resend-btn"
+            disabled={resendCooldown > 0}
+            onClick={handleResendCode}
+          >
+            <RefreshCw size={12} />
+            {resendCooldown > 0 ? `Resend (${resendCooldown}s)` : "Resend code"}
+          </button>
+        </div>
       </div>
-      <ErrorBadge message={errors[errorKey]} centered />
-      <div className="resend-row">
-        <button
-          type="button"
-          className="resend-btn"
-          disabled={resendCooldown > 0}
-          onClick={handleResendCode}
-        >
-          <RefreshCw size={12} />
-          {resendCooldown > 0 ? `Resend (${resendCooldown}s)` : "Resend code"}
-        </button>
-      </div>
-    </div>
-  );
+    );
+  };
 
   const showBackChevron = viewState !== "form" || isSignUp;
 
@@ -687,40 +923,26 @@ export default function AuthPage({ onLoginSuccess }) {
         onMouseMove={handleCardMouseMove}
         onMouseLeave={handleCardMouseLeave}
       >
-        {/* CardNext Warm Gold & Bronze Top Arc Glow */}
         <div className="cn-top-arc" aria-hidden="true" />
+        <div ref={orbRef} className="cn-faded-orb" aria-hidden="true" />
 
-        {/* Little Faded Circle That Runs Away From the Mouse */}
-        <div
-          ref={orbRef}
-          className="cn-faded-orb"
-          aria-hidden="true"
-        />
-
-        {/* Live Location/Device Time Pill */}
         <div className="cn-status-bar">
-          <span className="cn-time-pill" aria-label={`Current local time ${liveTime}`}>
+          <span
+            className="cn-time-pill"
+            aria-label={`Current local time ${liveTime}`}
+          >
             <span className="cn-live-dot" aria-hidden="true" />
             <span>{liveTime}</span>
           </span>
         </div>
 
-        {/* Top Back Navigation Row */}
         <div className="cn-nav-row">
           {showBackChevron ? (
             <button
               type="button"
               className="cn-back-btn"
               aria-label="Back"
-              onClick={() => {
-                if (viewState !== "form") {
-                  setViewState("form");
-                  setErrors({});
-                  setSuccessMessage("");
-                } else {
-                  goToLogin();
-                }
-              }}
+              onClick={handleBackClick}
             >
               <ChevronLeft size={24} strokeWidth={2.2} />
             </button>
@@ -729,25 +951,41 @@ export default function AuthPage({ onLoginSuccess }) {
           )}
         </div>
 
-        {/* Single Active Screen Body */}
-        <div className="cn-screen-body" key={`${isSignUp ? "signup" : "login"}-${viewState}`}>
-          {!isSignUp && viewState === "forgot" && (
+        <div
+          className="cn-screen-body"
+          key={`${isSignUp ? "signup" : "login"}-${viewState}`}
+        >
+          {viewState === "forgot" && (
             <div className="cn-view-fade">
               <h1 className="cn-title">
-                <HoverLetters text="Reset password" registerNode={registerLetterNode} />
+                <HoverLetters
+                  text="Reset password"
+                  registerNode={registerLetterNode}
+                />
               </h1>
               <p className="cn-subtitle">
-                <HoverLetters text="Remember it?" registerNode={registerLetterNode} />{" "}
-                <button type="button" className="cn-inline-link" onClick={goToLogin}>
+                <HoverLetters
+                  text="Remember it?"
+                  registerNode={registerLetterNode}
+                />{" "}
+                <button
+                  type="button"
+                  className="cn-inline-link"
+                  onClick={goToLogin}
+                >
                   <HoverLetters text="login" registerNode={registerLetterNode} />
                 </button>
               </p>
 
-              {successMessage && <div className="cn-success">{successMessage}</div>}
+              {successMessage && (
+                <div className="cn-success">{successMessage}</div>
+              )}
 
               <form onSubmit={handleSubmit} noValidate>
                 <div className="cn-field-group">
-                  <div className={`cn-pill-input ${errors.email ? "has-error" : ""}`}>
+                  <div
+                    className={`cn-pill-input ${errors.email ? "has-error" : ""}`}
+                  >
                     <input
                       type="email"
                       name="email"
@@ -761,7 +999,11 @@ export default function AuthPage({ onLoginSuccess }) {
                 </div>
 
                 <div className="cn-cta-row">
-                  <button type="submit" className="cn-gold-btn" disabled={isSubmitting}>
+                  <button
+                    type="submit"
+                    className="cn-gold-btn"
+                    disabled={isSubmitting}
+                  >
                     <span>{isSubmitting ? "Sending..." : "Send code"}</span>
                     <ArrowRight size={16} strokeWidth={2.3} />
                   </button>
@@ -770,7 +1012,7 @@ export default function AuthPage({ onLoginSuccess }) {
             </div>
           )}
 
-          {!isSignUp && viewState === "reset-code" && (
+          {viewState === "reset-code" && (
             <div className="cn-view-fade">
               <h1 className="cn-title">
                 <HoverLetters text="Enter code" registerNode={registerLetterNode} />
@@ -780,12 +1022,18 @@ export default function AuthPage({ onLoginSuccess }) {
                 <strong>{formData.email}</strong>
               </p>
 
-              {successMessage && <div className="cn-success">{successMessage}</div>}
+              {successMessage && (
+                <div className="cn-success">{successMessage}</div>
+              )}
 
               <form onSubmit={handleSubmit} noValidate>
-                {renderOtpInputs("resetCode")}
+                {renderOtpInputs("resetCode", false)}
                 <div className="cn-cta-row">
-                  <button type="submit" className="cn-gold-btn" disabled={isSubmitting}>
+                  <button
+                    type="submit"
+                    className="cn-gold-btn"
+                    disabled={isSubmitting}
+                  >
                     <span>{isSubmitting ? "Checking..." : "Verify"}</span>
                     <ArrowRight size={16} strokeWidth={2.3} />
                   </button>
@@ -794,21 +1042,30 @@ export default function AuthPage({ onLoginSuccess }) {
             </div>
           )}
 
-          {!isSignUp && viewState === "direct-reset" && (
+          {viewState === "direct-reset" && (
             <div className="cn-view-fade">
               <h1 className="cn-title">
-                <HoverLetters text="New password" registerNode={registerLetterNode} />
+                <HoverLetters
+                  text="New password"
+                  registerNode={registerLetterNode}
+                />
               </h1>
               <p className="cn-subtitle">
                 <HoverLetters text="For" registerNode={registerLetterNode} />{" "}
                 <strong>{formData.email}</strong>
               </p>
 
-              {successMessage && <div className="cn-success">{successMessage}</div>}
+              {successMessage && (
+                <div className="cn-success">{successMessage}</div>
+              )}
 
               <form onSubmit={handleSubmit} noValidate>
                 <div className="cn-field-group">
-                  <div className={`cn-pill-input ${errors.newPassword ? "has-error" : ""}`}>
+                  <div
+                    className={`cn-pill-input with-action ${
+                      errors.newPassword ? "has-error" : ""
+                    }`}
+                  >
                     <Lock size={15} className="cn-input-lock" />
                     <input
                       type={showPassword ? "text" : "password"}
@@ -819,26 +1076,51 @@ export default function AuthPage({ onLoginSuccess }) {
                       onChange={handleInputChange}
                       onKeyDown={handleKeyDownCheck}
                     />
+                    {renderEyeButton(
+                      showPassword,
+                      () => setShowPassword((prev) => !prev),
+                      showPassword ? "Hide new password" : "Show new password"
+                    )}
                   </div>
                   <ErrorBadge message={errors.newPassword} />
+                  {renderStrengthRules(
+                    formData.newPassword,
+                    newPasswordCriteria,
+                    newPasswordScore
+                  )}
                 </div>
 
                 <div className="cn-field-group">
-                  <div className={`cn-pill-input ${errors.confirmNewPassword ? "has-error" : ""}`}>
+                  <div
+                    className={`cn-pill-input with-action ${
+                      errors.confirmNewPassword ? "has-error" : ""
+                    }`}
+                  >
                     <input
-                      type={showPassword ? "text" : "password"}
+                      type={showConfirmPassword ? "text" : "password"}
                       name="confirmNewPassword"
                       placeholder="Confirm Password"
                       aria-label="Confirm Password"
                       value={formData.confirmNewPassword}
                       onChange={handleInputChange}
                     />
+                    {renderEyeButton(
+                      showConfirmPassword,
+                      () => setShowConfirmPassword((prev) => !prev),
+                      showConfirmPassword
+                        ? "Hide confirm password"
+                        : "Show confirm password"
+                    )}
                   </div>
                   <ErrorBadge message={errors.confirmNewPassword} />
                 </div>
 
                 <div className="cn-cta-row">
-                  <button type="submit" className="cn-gold-btn" disabled={isSubmitting}>
+                  <button
+                    type="submit"
+                    className="cn-gold-btn"
+                    disabled={isSubmitting}
+                  >
                     <span>{isSubmitting ? "Saving..." : "Update"}</span>
                     <ArrowRight size={16} strokeWidth={2.3} />
                   </button>
@@ -847,23 +1129,41 @@ export default function AuthPage({ onLoginSuccess }) {
             </div>
           )}
 
-          {!isSignUp && viewState === "verify" && (
+          {viewState === "verify" && (
             <div className="cn-view-fade">
               <h1 className="cn-title">
-                <HoverLetters text="Verify account" registerNode={registerLetterNode} />
+                <HoverLetters
+                  text="Verify account"
+                  registerNode={registerLetterNode}
+                />
               </h1>
               <p className="cn-subtitle">
-                <HoverLetters text="Code sent to" registerNode={registerLetterNode} />{" "}
+                <HoverLetters
+                  text="Code sent to"
+                  registerNode={registerLetterNode}
+                />{" "}
                 <strong>{formData.email}</strong>
               </p>
 
-              {successMessage && <div className="cn-success">{successMessage}</div>}
+              {successMessage && (
+                <div className="cn-success">{successMessage}</div>
+              )}
 
               <form onSubmit={handleSubmit} noValidate>
-                {renderOtpInputs("verificationCode")}
+                {renderOtpInputs("verificationCode", true)}
                 <div className="cn-cta-row">
-                  <button type="submit" className="cn-gold-btn" disabled={isSubmitting}>
-                    <span>{isSubmitting ? "Verifying..." : "Verify"}</span>
+                  <button
+                    type="submit"
+                    className="cn-gold-btn"
+                    disabled={isSubmitting || codeSecondsLeft <= 0}
+                  >
+                    <span>
+                      {codeSecondsLeft <= 0
+                        ? "Expired"
+                        : isSubmitting
+                        ? "Verifying..."
+                        : "Verify"}
+                    </span>
                     <ArrowRight size={16} strokeWidth={2.3} />
                   </button>
                 </div>
@@ -878,127 +1178,31 @@ export default function AuthPage({ onLoginSuccess }) {
                 <HoverLetters text="Login" registerNode={registerLetterNode} />
               </h1>
               <p className="cn-subtitle">
-                <HoverLetters text="Don't have an account?" registerNode={registerLetterNode} />{" "}
+                <HoverLetters
+                  text="Don't have an account?"
+                  registerNode={registerLetterNode}
+                />{" "}
                 <button
                   type="button"
                   className="cn-inline-link"
                   onClick={goToSignUp}
                 >
-                  <HoverLetters text="sign up" registerNode={registerLetterNode} />
+                  <HoverLetters
+                    text="sign up"
+                    registerNode={registerLetterNode}
+                  />
                 </button>
               </p>
 
-              {successMessage && <div className="cn-success">{successMessage}</div>}
+              {successMessage && (
+                <div className="cn-success">{successMessage}</div>
+              )}
 
               <form onSubmit={handleSubmit} noValidate>
                 <div className="cn-field-group">
-                  <div className={`cn-pill-input ${errors.email ? "has-error" : ""}`}>
-                    <input
-                      type="email"
-                      name="email"
-                      placeholder="Email"
-                      aria-label="Email"
-                      autoComplete="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <ErrorBadge message={errors.email} />
-                </div>
-
-                <div className="cn-field-group">
-                  <div className={`cn-pill-input with-action ${errors.password ? "has-error" : ""}`}>
-                    <Lock size={15} className="cn-input-lock" />
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      name="password"
-                      placeholder="Password"
-                      aria-label="Password"
-                      autoComplete="current-password"
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      onKeyDown={handleKeyDownCheck}
-                    />
-                    {capsLockOn && (
-                      <span className="cn-caps-pill" title="Caps Lock is on">
-                        <AlertTriangle size={11} />
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      className="cn-forgot-inline"
-                      onClick={() => {
-                        setViewState("forgot");
-                        setErrors({});
-                        setSuccessMessage("");
-                      }}
-                    >
-                      <HoverLetters text="FORGOT" registerNode={registerLetterNode} />
-                    </button>
-                  </div>
-                  <ErrorBadge message={errors.password} />
-                </div>
-
-                <div className="cn-cta-row">
-                  <button type="submit" className="cn-gold-btn" disabled={isSubmitting}>
-                    <span>{isSubmitting ? "Logging in..." : "Login"}</span>
-                    <ArrowRight size={16} strokeWidth={2.3} />
-                  </button>
-                </div>
-              </form>
-
-              {/* Continue with Google (CardNext Brown G) */}
-              <div className="cn-google-wrap">
-                <button
-                  type="button"
-                  className="cn-google-btn"
-                  onClick={handleGoogleAuth}
-                >
-                  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-                    <path
-                      fill="#713b17"
-                      d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27 3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.56 2 12.1 2C6.42 2 2.03 6.8 2.03 12c0 5.05 4.13 10 10.22 10 5.35 0 9.25-3.67 9.25-9.09 0-1.15-.15-1.81-.15-1.81z"
-                    />
-                  </svg>
-                  <HoverLetters text="Continue with Google" registerNode={registerLetterNode} />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* SECOND SCREEN: CREATE ACCOUNT ({ fullName, email, password }) */}
-          {isSignUp && (
-            <div className="cn-view-fade">
-              <h1 className="cn-title">
-                <HoverLetters text="Create account" registerNode={registerLetterNode} />
-              </h1>
-              <p className="cn-subtitle">
-                <HoverLetters text="Already have an account?" registerNode={registerLetterNode} />{" "}
-                <button type="button" className="cn-inline-link" onClick={goToLogin}>
-                  <HoverLetters text="sign in" registerNode={registerLetterNode} />
-                </button>
-              </p>
-
-              {successMessage && <div className="cn-success">{successMessage}</div>}
-
-              <form onSubmit={handleSubmit} noValidate>
-                <div className="cn-field-group">
-                  <div className={`cn-pill-input ${errors.fullName ? "has-error" : ""}`}>
-                    <input
-                      type="text"
-                      name="fullName"
-                      placeholder="Full name"
-                      aria-label="Full name"
-                      autoComplete="name"
-                      value={formData.fullName}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <ErrorBadge message={errors.fullName} />
-                </div>
-
-                <div className="cn-field-group">
-                  <div className={`cn-pill-input ${errors.email ? "has-error" : ""}`}>
+                  <div
+                    className={`cn-pill-input ${errors.email ? "has-error" : ""}`}
+                  >
                     <input
                       type="email"
                       name="email"
@@ -1014,10 +1218,159 @@ export default function AuthPage({ onLoginSuccess }) {
 
                 <div className="cn-field-group">
                   <div
-                    className={`cn-pill-input ${errors.password ? "has-error" : ""}`}
-                    onClick={() => {
-                      if (!showPassword && formData.password) setShowPassword(true);
-                    }}
+                    className={`cn-pill-input with-action ${
+                      errors.password ? "has-error" : ""
+                    }`}
+                  >
+                    <Lock size={15} className="cn-input-lock" />
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      placeholder="Password"
+                      aria-label="Password"
+                      autoComplete="current-password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      onKeyDown={handleKeyDownCheck}
+                    />
+                    {renderEyeButton(
+                      showPassword,
+                      () => setShowPassword((prev) => !prev),
+                      showPassword ? "Hide password" : "Show password"
+                    )}
+                    {capsLockOn && (
+                      <span className="cn-caps-pill" title="Caps Lock is on">
+                        <AlertTriangle size={11} />
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      className="cn-forgot-inline"
+                      onClick={() => {
+                        setViewState("forgot");
+                        setErrors({});
+                        setSuccessMessage("");
+                      }}
+                    >
+                      <HoverLetters
+                        text="FORGOT"
+                        registerNode={registerLetterNode}
+                      />
+                    </button>
+                  </div>
+                  <ErrorBadge message={errors.password} />
+                </div>
+
+                <div className="cn-cta-row">
+                  <button
+                    type="submit"
+                    className="cn-gold-btn"
+                    disabled={isSubmitting}
+                  >
+                    <span>{isSubmitting ? "Logging in..." : "Login"}</span>
+                    <ArrowRight size={16} strokeWidth={2.3} />
+                  </button>
+                </div>
+              </form>
+
+              <div className="cn-google-wrap">
+                <button
+                  type="button"
+                  className="cn-google-btn"
+                  onClick={handleGoogleAuth}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="18"
+                    height="18"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fill="#713b17"
+                      d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27 3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.56 2 12.1 2C6.42 2 2.03 6.8 2.03 12c0 5.05 4.13 10 10.22 10 5.35 0 9.25-3.67 9.25-9.09 0-1.15-.15-1.81-.15-1.81z"
+                    />
+                  </svg>
+                  <HoverLetters
+                    text="Continue with Google"
+                    registerNode={registerLetterNode}
+                  />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* SECOND SCREEN: CREATE ACCOUNT ({ fullName, email, password }) */}
+          {isSignUp && viewState === "form" && (
+            <div className="cn-view-fade">
+              <h1 className="cn-title">
+                <HoverLetters
+                  text="Create account"
+                  registerNode={registerLetterNode}
+                />
+              </h1>
+              <p className="cn-subtitle">
+                <HoverLetters
+                  text="Already have an account?"
+                  registerNode={registerLetterNode}
+                />{" "}
+                <button
+                  type="button"
+                  className="cn-inline-link"
+                  onClick={goToLogin}
+                >
+                  <HoverLetters
+                    text="sign in"
+                    registerNode={registerLetterNode}
+                  />
+                </button>
+              </p>
+
+              {successMessage && (
+                <div className="cn-success">{successMessage}</div>
+              )}
+
+              <form onSubmit={handleSubmit} noValidate>
+                <div className="cn-field-group">
+                  <div
+                    className={`cn-pill-input ${
+                      errors.fullName ? "has-error" : ""
+                    }`}
+                  >
+                    <input
+                      type="text"
+                      name="fullName"
+                      placeholder="Full name"
+                      aria-label="Full name"
+                      autoComplete="name"
+                      value={formData.fullName}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  <ErrorBadge message={errors.fullName} />
+                </div>
+
+                <div className="cn-field-group">
+                  <div
+                    className={`cn-pill-input ${errors.email ? "has-error" : ""}`}
+                  >
+                    <input
+                      type="email"
+                      name="email"
+                      placeholder="Email"
+                      aria-label="Email"
+                      autoComplete="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  <ErrorBadge message={errors.email} />
+                </div>
+
+                <div className="cn-field-group">
+                  <div
+                    className={`cn-pill-input with-action ${
+                      errors.password ? "has-error" : ""
+                    }`}
                   >
                     <input
                       type={showPassword ? "text" : "password"}
@@ -1029,47 +1382,31 @@ export default function AuthPage({ onLoginSuccess }) {
                       onChange={handleInputChange}
                       onKeyDown={handleKeyDownCheck}
                     />
+                    {renderEyeButton(
+                      showPassword,
+                      () => setShowPassword((prev) => !prev),
+                      showPassword ? "Hide password" : "Show password"
+                    )}
+                    {capsLockOn && (
+                      <span className="cn-caps-pill" title="Caps Lock is on">
+                        <AlertTriangle size={11} />
+                      </span>
+                    )}
                   </div>
                   <ErrorBadge message={errors.password} />
-
-                  {formData.password.length > 0 && (
-                    <div className="cn-pass-rules">
-                      <div className="cn-strength-bars">
-                        {[1, 2, 3, 4].map((level) => (
-                          <span
-                            key={level}
-                            className={`cn-strength-seg ${
-                              passwordScore >= level
-                                ? passwordScore <= 2
-                                  ? "weak"
-                                  : passwordScore === 3
-                                  ? "medium"
-                                  : "strong"
-                                : ""
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      <div className="cn-rules-grid">
-                        <span className={passwordCriteria.length ? "ok" : ""}>
-                          {passwordCriteria.length ? <Check size={10} /> : <X size={10} />} 8+ chars
-                        </span>
-                        <span className={passwordCriteria.uppercase ? "ok" : ""}>
-                          {passwordCriteria.uppercase ? <Check size={10} /> : <X size={10} />} Uppercase
-                        </span>
-                        <span className={passwordCriteria.number ? "ok" : ""}>
-                          {passwordCriteria.number ? <Check size={10} /> : <X size={10} />} Number
-                        </span>
-                        <span className={passwordCriteria.special ? "ok" : ""}>
-                          {passwordCriteria.special ? <Check size={10} /> : <X size={10} />} Symbol
-                        </span>
-                      </div>
-                    </div>
+                  {renderStrengthRules(
+                    formData.password,
+                    passwordCriteria,
+                    passwordScore
                   )}
                 </div>
 
                 <div className="cn-cta-row">
-                  <button type="submit" className="cn-gold-btn" disabled={isSubmitting}>
+                  <button
+                    type="submit"
+                    className="cn-gold-btn"
+                    disabled={isSubmitting}
+                  >
                     <span>{isSubmitting ? "Signing up..." : "Sign up"}</span>
                     <ArrowRight size={16} strokeWidth={2.3} />
                   </button>
@@ -1079,11 +1416,13 @@ export default function AuthPage({ onLoginSuccess }) {
           )}
         </div>
 
-        {/* Security Footer */}
         <div className="cn-security-strip">
           <KeyRound size={11} />
           <ShieldCheck size={11} />
-          <HoverLetters text="CardNext Encrypted" registerNode={registerLetterNode} />
+          <HoverLetters
+            text="CardNext Encrypted"
+            registerNode={registerLetterNode}
+          />
         </div>
       </div>
 
@@ -1120,7 +1459,6 @@ export default function AuthPage({ onLoginSuccess }) {
           padding: 14px 24px 20px;
         }
 
-        /* CardNext Warm Gold & Bronze Top-Right Arc Glow */
         .cn-top-arc {
           position: absolute;
           top: -96px;
@@ -1138,7 +1476,6 @@ export default function AuthPage({ onLoginSuccess }) {
           z-index: 0;
         }
 
-        /* Little Faded Circle That Dodges Pointer Movement */
         .cn-faded-orb {
           position: absolute;
           top: 56%;
@@ -1244,7 +1581,6 @@ export default function AuthPage({ onLoginSuccess }) {
           to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Seamless Individual Letter Enlarge Effect */
         .cn-hover-letters {
           display: inline-flex;
           flex-wrap: wrap;
@@ -1308,6 +1644,10 @@ export default function AuthPage({ onLoginSuccess }) {
           transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
         }
 
+        .cn-pill-input.with-action {
+          padding-right: 12px;
+        }
+
         .cn-pill-input:hover {
           border-color: #c2b298;
         }
@@ -1321,13 +1661,6 @@ export default function AuthPage({ onLoginSuccess }) {
           border-color: rgba(185, 56, 44, 0.65);
           background: #fffaf9;
           box-shadow: 0 0 0 3px rgba(185, 56, 44, 0.08);
-        }
-
-        .cn-prefix {
-          font-size: 13.5px;
-          font-weight: 700;
-          color: #3b2618;
-          user-select: none;
         }
 
         .cn-input-lock {
@@ -1353,16 +1686,36 @@ export default function AuthPage({ onLoginSuccess }) {
           font-weight: 400;
         }
 
+        .cn-eye-btn {
+          background: transparent;
+          border: 0;
+          padding: 4px;
+          color: #7c6857;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          border-radius: 999px;
+          flex-shrink: 0;
+          transition: color 0.15s ease, background 0.15s ease;
+        }
+
+        .cn-eye-btn:hover {
+          color: #713b17;
+          background: rgba(113, 59, 23, 0.08);
+        }
+
         .cn-caps-pill {
           color: #b45309;
           display: inline-flex;
           align-items: center;
+          flex-shrink: 0;
         }
 
         .cn-forgot-inline {
           background: transparent;
           border: 0;
-          padding: 0;
+          padding: 0 0 0 2px;
           font-size: 10.5px;
           font-weight: 800;
           letter-spacing: 0.4px;
@@ -1485,6 +1838,26 @@ export default function AuthPage({ onLoginSuccess }) {
           color: #059669;
         }
 
+        .cn-expiry-bar {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          margin-bottom: 8px;
+          padding: 4px 10px;
+          border-radius: 999px;
+          background: #fdf6e7;
+          border: 1px solid #ebd2a2;
+          color: #713b17;
+          font-size: 11px;
+          font-weight: 700;
+        }
+
+        .cn-expiry-bar.expired {
+          background: rgba(185, 56, 44, 0.08);
+          border-color: rgba(185, 56, 44, 0.25);
+          color: #9e2a20;
+        }
+
         .otp-grid {
           display: grid;
           grid-template-columns: repeat(6, 1fr);
@@ -1515,6 +1888,11 @@ export default function AuthPage({ onLoginSuccess }) {
           background: #fffaf9;
         }
 
+        .otp-box:disabled {
+          background: #f5f1e8;
+          color: #a89d90;
+        }
+
         .resend-row {
           display: flex;
           justify-content: flex-end;
@@ -1538,7 +1916,6 @@ export default function AuthPage({ onLoginSuccess }) {
           cursor: not-allowed;
         }
 
-        /* Clean Premium Error Pill */
         .cn-error-pill {
           margin-top: 6px;
           padding: 5px 11px;
