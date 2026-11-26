@@ -4,7 +4,7 @@ import {
   Gift, Search, ShieldCheck, Check, X, ArrowRight, ArrowUp, CreditCard, Loader2, AlertCircle, ChevronDown, Info, Wallet, Coins, FileText, Download, Receipt, Copy, ExternalLink
 } from "lucide-react";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
 const CURRENCIES = {
   NGN: { symbol: "₦", rate: 1500, label: "NGN (₦)", name: "Nigerian Naira" },

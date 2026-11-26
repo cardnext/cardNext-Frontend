@@ -4,6 +4,8 @@ import {
   Camera, Lock, ShieldCheck, ExternalLink, RefreshCw, AlertCircle, Loader2, ArrowUp
 } from "lucide-react";
 
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("Profile");
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -76,7 +78,7 @@ export default function SettingsPage() {
       setIsFetching(true);
       setErrorMessage("");
       try {
-        const response = await fetch(`http://localhost:5000/api/settings/profile/${encodeURIComponent(userEmail)}`);
+        const response = await fetch(`${API_BASE}/api/settings/profile/${encodeURIComponent(userEmail)}`);
         const result = await response.json();
 
         if (response.ok && result?.success && result.user) {
@@ -108,7 +110,7 @@ export default function SettingsPage() {
     setSaveSuccess(false);
 
     try {
-      const response = await fetch("http://localhost:5000/api/settings/profile", {
+      const response = await fetch(`${API_BASE}/api/settings/profile`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, fullName, phone, bio })
@@ -142,7 +144,7 @@ export default function SettingsPage() {
     setSaveSuccess(false);
 
     try {
-      const response = await fetch("http://localhost:5000/api/settings/request-password-code", {
+      const response = await fetch(`${API_BASE}/api/settings/request-password-code`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, currentPassword, newPassword })
@@ -170,7 +172,7 @@ export default function SettingsPage() {
     setErrorMessage("");
 
     try {
-      const response = await fetch("http://localhost:5000/api/settings/verify-and-change-password", {
+      const response = await fetch(`${API_BASE}/api/settings/verify-and-change-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, newPassword, verificationCode })

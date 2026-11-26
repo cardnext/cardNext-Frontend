@@ -17,8 +17,9 @@ import SettingsPage from "./Settings";
 import HelpAndSupportPage from "./Helpandsupport";
 import AuthPage from "./Auth";
 
-const API_BASE_URL = "http://localhost:5000/api";
-const ESIM_API_BASE_URL = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+const API_BASE_URL = `${API_BASE}/api`;
+const ESIM_API_BASE_URL = API_BASE;
 const MARKET_SESSION_CACHE_KEY = "cardnext_market_rates_v1";
 const MARKET_SESSION_TTL = 5 * 60 * 1000;
 const ACTIVE_PAGE_STORAGE_KEY = "cardnext_active_page";

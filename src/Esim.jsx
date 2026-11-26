@@ -6,7 +6,7 @@ import {
   ChevronDown, ChevronUp, Coins, Lock, PlusCircle, RefreshCw, Copy, ArrowUp, FileText
 } from "lucide-react";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 const CATALOG_CACHE_KEY = "cardnext_esim_catalog_cache_v1";
 const CATALOG_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
 const WALLET_CACHE_KEY = "cardnext_wallet_cache";

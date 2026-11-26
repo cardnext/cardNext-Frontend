@@ -6,7 +6,35 @@ import {
   Ticket, Trophy, GraduationCap, Loader2, Lock, FileText, Download, RefreshCw
 } from "lucide-react";
 
-const API_BASE = "http://localhost:5000";
+const resolveApiBase = () => {
+  try {
+    if (typeof import.meta !== "undefined" && import.meta.env) {
+      const viteBase =
+        import.meta.env.VITE_API_BASE || import.meta.env.VITE_API_URL;
+      if (typeof viteBase === "string" && viteBase.trim()) {
+        return viteBase.trim().replace(/\/+$/, "");
+      }
+    }
+  } catch {
+    // Ignore if import.meta is unavailable
+  }
+
+  try {
+    if (typeof process !== "undefined" && process.env) {
+      const nodeBase =
+        process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_URL;
+      if (typeof nodeBase === "string" && nodeBase.trim()) {
+        return nodeBase.trim().replace(/\/+$/, "");
+      }
+    }
+  } catch {
+    // Ignore if process is unavailable
+  }
+
+  return "http://localhost:5000";
+};
+
+const API_BASE = resolveApiBase();
 const WALLET_CACHE_KEY = "cardnext_wallet_cache";
 const WALLET_UPDATED_EVENT = "cardnext:wallet-updated";
 

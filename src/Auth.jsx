@@ -15,16 +15,24 @@ import {
 
 const resolveApiBaseUrl = () => {
   try {
-    if (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL) {
-      return import.meta.env.VITE_API_URL;
+    if (typeof import.meta !== "undefined" && import.meta.env) {
+      const viteBase =
+        import.meta.env.VITE_API_BASE || import.meta.env.VITE_API_URL;
+      if (typeof viteBase === "string" && viteBase.trim()) {
+        return viteBase.trim().replace(/\/+$/, "");
+      }
     }
   } catch {
     // Ignore if import.meta is unavailable
   }
 
   try {
-    if (typeof process !== "undefined" && process.env?.REACT_APP_API_URL) {
-      return process.env.REACT_APP_API_URL;
+    if (typeof process !== "undefined" && process.env) {
+      const nodeBase =
+        process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_URL;
+      if (typeof nodeBase === "string" && nodeBase.trim()) {
+        return nodeBase.trim().replace(/\/+$/, "");
+      }
     }
   } catch {
     // Ignore if process is unavailable in browser

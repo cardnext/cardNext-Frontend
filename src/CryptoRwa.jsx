@@ -5,6 +5,36 @@ import {
   Wallet, Network, ArrowUpRight, ArrowDownLeft, Search, Copy, Coins, ChevronDown, Loader2, AlertCircle, Lock
 } from "lucide-react";
 
+const resolveApiBase = () => {
+  try {
+    if (typeof import.meta !== "undefined" && import.meta.env) {
+      const viteBase =
+        import.meta.env.VITE_API_BASE || import.meta.env.VITE_API_URL;
+      if (typeof viteBase === "string" && viteBase.trim()) {
+        return viteBase.trim().replace(/\/+$/, "");
+      }
+    }
+  } catch {
+    // Ignore if import.meta is unavailable
+  }
+
+  try {
+    if (typeof process !== "undefined" && process.env) {
+      const nodeBase =
+        process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_URL;
+      if (typeof nodeBase === "string" && nodeBase.trim()) {
+        return nodeBase.trim().replace(/\/+$/, "");
+      }
+    }
+  } catch {
+    // Ignore if process is unavailable
+  }
+
+  return "http://localhost:5000";
+};
+
+const API_BASE = resolveApiBase();
+
 const CURRENCIES = {
   NGN: { symbol: "₦", rate: 1500, label: "NGN (₦)", name: "Nigerian Naira" },
   USD: { symbol: "$", rate: 1, label: "USD ($)", name: "US Dollar" },
@@ -13,7 +43,10 @@ const CURRENCIES = {
 };
 
 export default function CryptoRwaPage() {
-  const [userId, setUserId] = useState(() => localStorage.getItem("userId") || null);
+  const [userId, setUserId] = useState(() => {
+    const id = localStorage.getItem("userId");
+    return id && id !== "null" && id !== "undefined" ? id : null;
+  });
   const [cryptoAssets, setCryptoAssets] = useState([]);
   const [isLoadingAssets, setIsLoadingAssets] = useState(true);
   const [isServiceActive, setIsServiceActive] = useState(true);
@@ -22,6 +55,7 @@ export default function CryptoRwaPage() {
   const [selectedNetwork, setSelectedNetwork] = useState("");
   const [amount, setAmount] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [actionError, setActionError] = useState("");
   const [successModal, setSuccessModal] = useState(false);
   const [depositAddressGenerated, setDepositAddressGenerated] = useState(false);
   const [generatedAddressData, setGeneratedAddressData] = useState(null);
@@ -55,7 +89,9 @@ export default function CryptoRwaPage() {
     }
     setUserId(activeUserId);
 
-    fetch(`http://localhost:5000/api/wallet/balance/${activeUserId}`)
+    const encodedUserId = encodeURIComponent(activeUserId);
+
+    fetch(`${API_BASE}/api/wallet/balance/${encodedUserId}`)
       .then(res => res.json())
       .then(data => {
         if (data?.success) {
@@ -66,7 +102,7 @@ export default function CryptoRwaPage() {
       })
       .catch(() => {});
 
-    fetch(`http://localhost:5000/api/wallet/transactions/${activeUserId}`)
+    fetch(`${API_BASE}/api/wallet/transactions/${encodedUserId}`)
       .then(res => res.json())
       .then(data => {
         if (data?.success && Array.isArray(data.transactions)) {
@@ -76,7 +112,7 @@ export default function CryptoRwaPage() {
       .catch(() => {});
 
     setIsLoadingAssets(true);
-    fetch("http://localhost:5000/api/crypto/assets")
+    fetch(`${API_BASE}/api/crypto/assets`)
       .then(res => res.json())
       .then(data => {
         if (data?.success && data.data) {
@@ -125,8 +161,10 @@ export default function CryptoRwaPage() {
   };
 
   const handleActionTrigger = async () => {
+    setActionError("");
+
     if (!userId || userId === "null" || userId === "undefined") {
-      alert("Active session required. Please log in.");
+      setActionError("Active session required. Please log in.");
       return;
     }
     if (!selectedAsset) return;
@@ -135,25 +173,25 @@ export default function CryptoRwaPage() {
       if (!selectedNetwork) return;
       setIsProcessing(true);
       try {
-        const response = await fetch("http://localhost:5000/api/crypto/deposit-address", {
+        const response = await fetch(`${API_BASE}/api/crypto/deposit-address`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            userId: Number(userId),
+            userId: Number.isNaN(Number(userId)) ? userId : Number(userId),
             asset: selectedAsset.symbol.toLowerCase(),
             network: selectedNetwork
           })
         });
-        const result = await response.json();
+        const result = await response.json().catch(() => null);
         if (response.ok && result?.success) {
           setGeneratedAddressData(result.data || {});
           setDepositAddressGenerated(true);
         } else {
-          alert(result?.message || "Failed to generate deposit address.");
+          setActionError(result?.message || "Failed to generate deposit address.");
         }
       } catch (err) {
         console.error("Backend Connection Error:", err);
-        alert("Unable to reach backend server.");
+        setActionError("Unable to reach backend server.");
       } finally {
         setIsProcessing(false);
       }
@@ -166,22 +204,22 @@ export default function CryptoRwaPage() {
 
     try {
       if (tradeType === "Sell") {
-        const response = await fetch("http://localhost:5000/api/crypto/sell", {
+        const response = await fetch(`${API_BASE}/api/crypto/sell`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            userId: Number(userId),
+            userId: Number.isNaN(Number(userId)) ? userId : Number(userId),
             assetSymbol: selectedAsset.symbol,
             cryptoAmount: numericAmt,
             fiatCurrency: currentCurrency,
             exchangeRate: selectedAsset.basePriceUSD * CURRENCIES[currentCurrency].rate
           })
         });
-        const result = await response.json();
+        const result = await response.json().catch(() => null);
         if (response.ok && result?.success) {
           setSuccessModal(true);
         } else {
-          alert(result?.message || "Trade execution failed.");
+          setActionError(result?.message || "Trade execution failed.");
         }
       } else {
         await new Promise(resolve => setTimeout(resolve, 900));
@@ -189,7 +227,7 @@ export default function CryptoRwaPage() {
       }
     } catch (err) {
       console.error("Trade Execution Error:", err);
-      alert("Network error connecting to trade engine.");
+      setActionError("Network error connecting to trade engine.");
     } finally {
       setIsProcessing(false);
     }
@@ -198,6 +236,7 @@ export default function CryptoRwaPage() {
   const closeModal = () => {
     setSelectedAsset(null);
     setAmount("");
+    setActionError("");
     setSuccessModal(false);
     setDepositAddressGenerated(false);
     setSelectedNetwork("");
@@ -213,6 +252,7 @@ export default function CryptoRwaPage() {
   const openQuickAction = (type) => {
     if (!isServiceActive || cryptoAssets.length === 0) return;
     const first = cryptoAssets[0];
+    setActionError("");
     setSelectedAsset(first);
     setTradeType(type);
     setSelectedNetwork(type === "Deposit" ? (first.networks[0]?.value || "") : "");
@@ -413,6 +453,7 @@ export default function CryptoRwaPage() {
                         className="mini-asset-row"
                         key={item.id}
                         onClick={() => {
+                          setActionError("");
                           setSelectedAsset(item);
                           setTradeType("Deposit");
                           setSelectedNetwork(item.networks[0]?.value || "");
@@ -420,6 +461,7 @@ export default function CryptoRwaPage() {
                         onKeyDown={e => {
                           if (e.key === "Enter" || e.key === " ") {
                             e.preventDefault();
+                            setActionError("");
                             setSelectedAsset(item);
                             setTradeType("Deposit");
                             setSelectedNetwork(item.networks[0]?.value || "");
@@ -585,12 +627,25 @@ export default function CryptoRwaPage() {
               ) : (
                 <>
                   <div className="trip-tabs" style={{ marginBottom: "16px" }}>
-                    <button type="button" className={tradeType === "Buy" ? "active" : ""} onClick={() => setTradeType("Buy")}>Buy</button>
-                    <button type="button" className={tradeType === "Sell" ? "active" : ""} onClick={() => setTradeType("Sell")}>Sell</button>
+                    <button
+                      type="button"
+                      className={tradeType === "Buy" ? "active" : ""}
+                      onClick={() => { setActionError(""); setTradeType("Buy"); }}
+                    >
+                      Buy
+                    </button>
+                    <button
+                      type="button"
+                      className={tradeType === "Sell" ? "active" : ""}
+                      onClick={() => { setActionError(""); setTradeType("Sell"); }}
+                    >
+                      Sell
+                    </button>
                     <button
                       type="button"
                       className={tradeType === "Deposit" ? "active" : ""}
                       onClick={() => {
+                        setActionError("");
                         setTradeType("Deposit");
                         if (selectedAsset.networks.length > 0) setSelectedNetwork(selectedAsset.networks[0].value);
                       }}
@@ -640,6 +695,12 @@ export default function CryptoRwaPage() {
                           onChange={e => setAmount(e.target.value.replace(/[^\d.]/g, ""))}
                         />
                       </div>
+                    </div>
+                  )}
+
+                  {actionError && (
+                    <div className="modal-error-banner animate-pop" style={{ marginBottom: "14px" }}>
+                      <AlertCircle size={14} /> <span>{actionError}</span>
                     </div>
                   )}
 
@@ -845,6 +906,7 @@ export default function CryptoRwaPage() {
         .bills-input-wrap span { color: #f3dfc1; font-weight: 800; font-size: 15px; }
         .bills-input-wrap input { width: 100%; background: transparent; border: 0; padding: 12px 10px; color: #fff; font-size: 15px; font-weight: 700; outline: none; box-sizing: border-box; }
 
+        .modal-error-banner { display: flex; align-items: center; gap: 7px; background: rgba(248, 113, 113, 0.12); border: 1px solid rgba(248, 113, 113, 0.35); color: #fca5a5; padding: 9px 12px; border-radius: 10px; font-size: 11px; font-weight: 700; box-sizing: border-box; }
         .secure-note { display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: #8c7a6b; margin: 0; }
 
         .premium-btn { width: 100%; padding: 12px; background: linear-gradient(135deg, #8c4a1e 0%, #713b17 100%); color: #fff; font-weight: 800; border-radius: 12px; border: 1px solid rgba(243,223,193,0.15); cursor: pointer; font-size: 12.5px; box-shadow: 0 6px 20px rgba(113,59,23,0.45); transition: all 0.2s ease; box-sizing: border-box; }

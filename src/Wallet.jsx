@@ -4,6 +4,8 @@ import {
   Plus, Check, Copy, ArrowDownLeft, ArrowUpRight, Send, RefreshCcw, Search, ChevronDown, Activity, Sparkles, Coins, Eye, EyeOff, FileText, UserCheck, ShieldAlert, X, Download
 } from "lucide-react";
 
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+
 const CURRENCIES = {
   NGN: { symbol: "₦", rate: 1500, label: "NGN (₦)", name: "Nigerian Naira" },
   USD: { symbol: "$", rate: 1, label: "USD ($)", name: "US Dollar" },
@@ -205,7 +207,7 @@ export default function WalletPage({ onAddMoney }) {
   const provisionVirtualAccountQuietly = useCallback(async (targetUserId, currentBal, currentTxs) => {
     setProvisioningAccount(true);
     try {
-      const res = await fetch("http://localhost:5000/api/wallet/virtual-account", {
+      const res = await fetch(`${API_BASE}/api/wallet/virtual-account`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: Number(targetUserId) })
@@ -233,7 +235,7 @@ export default function WalletPage({ onAddMoney }) {
 
     try {
       try {
-        await fetch("http://localhost:5000/api/wallet/sync-dva", {
+        await fetch(`${API_BASE}/api/wallet/sync-dva`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId: Number(activeId) })
@@ -241,8 +243,8 @@ export default function WalletPage({ onAddMoney }) {
       } catch {}
 
       const [balRes, txRes] = await Promise.all([
-        fetch(`http://localhost:5000/api/wallet/balance/${activeId}`),
-        fetch(`http://localhost:5000/api/wallet/transactions/${activeId}`)
+        fetch(`${API_BASE}/api/wallet/balance/${activeId}`),
+        fetch(`${API_BASE}/api/wallet/transactions/${activeId}`)
       ]);
       const balData = await balRes.json();
       const txData = await txRes.json();
@@ -290,7 +292,7 @@ export default function WalletPage({ onAddMoney }) {
     }
 
     try {
-      const res = await fetch("http://localhost:5000/api/wallet/banks");
+      const res = await fetch(`${API_BASE}/api/wallet/banks`);
       const data = await res.json();
       if (data?.success) {
         const list = data.banks || data.data?.Banks || data.data?.banks || data.data || [];
@@ -429,7 +431,7 @@ export default function WalletPage({ onAddMoney }) {
     setBeneficiaryName("");
 
     try {
-      const res = await fetch("http://localhost:5000/api/wallet/name-enquiry", {
+      const res = await fetch(`${API_BASE}/api/wallet/name-enquiry`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ accountNumber: accNum, bankCode: bCode })
@@ -541,7 +543,7 @@ export default function WalletPage({ onAddMoney }) {
 
     setTransferring(true);
     try {
-      const res = await fetch("http://localhost:5000/api/wallet/transfer", {
+      const res = await fetch(`${API_BASE}/api/wallet/transfer`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -616,7 +618,7 @@ export default function WalletPage({ onAddMoney }) {
     setTsqResult(null);
 
     try {
-      const res = await fetch("http://localhost:5000/api/wallet/tsq", {
+      const res = await fetch(`${API_BASE}/api/wallet/tsq`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ originalRequestRef: tsqRef })
