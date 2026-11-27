@@ -110,6 +110,13 @@ class DashboardErrorBoundary extends React.Component {
     const fallbackPage = readStoredUser() ? "Dashboard" : "CardGod";
     try {
       localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, fallbackPage);
+      if (typeof window !== "undefined" && window.history) {
+        window.history.replaceState(
+          { ...(window.history.state || {}), page: fallbackPage },
+          "",
+          window.location.href
+        );
+      }
     } catch {}
     this.setState({ hasError: false, message: "" });
   };
@@ -1177,6 +1184,10 @@ export default function Dashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [globalCurrency, setGlobalCurrency] = useState(ALL_CURRENCIES[0]);
 
+  const isPopstateRef = useRef(false);
+  const activePageRef = useRef(activePage);
+  activePageRef.current = activePage;
+
   const [walletBalance, setWalletBalance] = useState(() => {
     if (!initialUser) return 0;
     const cachedBal = initialCache?.balanceData?.walletBalance ?? initialCache?.walletBalance;
@@ -1201,19 +1212,134 @@ export default function Dashboard() {
   const userEmail = currentUser?.email || "";
 
   const navigateSafe = useCallback(
-    (targetPage) => {
-      if (!VALID_PAGES.has(targetPage)) {
-        setActivePage(currentUser ? "Dashboard" : "CardGod");
+    (targetPage, options = {}) => {
+      const { replace = false, fromPopstate = false } = options;
+      const hasSessionUser = Boolean(currentUser || readStoredUser());
+      const fallbackPage = hasSessionUser ? "Dashboard" : "CardGod";
+
+      let resolvedTarget = VALID_PAGES.has(targetPage) ? targetPage : fallbackPage;
+      if (!hasSessionUser && !PUBLIC_PAGES.has(resolvedTarget)) {
+        resolvedTarget = "CardGod";
+      }
+
+      const previousPage = activePageRef.current;
+      setActivePage(resolvedTarget);
+
+      if (typeof window === "undefined" || !window.history || fromPopstate) {
         return;
       }
-      if (!currentUser && !PUBLIC_PAGES.has(targetPage)) {
-        setActivePage("CardGod");
-        return;
-      }
-      setActivePage(targetPage);
+
+      try {
+        const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+
+        // Ensure pressing Back from "Auth" always steps back into "CardGod"
+        // instead of exiting the app or stepping to an unrelated entry.
+        if (!replace && resolvedTarget === "Auth" && previousPage !== "CardGod") {
+          if (window.history.state?.page !== "CardGod") {
+            window.history.replaceState(
+              { ...(window.history.state || {}), page: "CardGod" },
+              "",
+              currentUrl
+            );
+          }
+          window.history.pushState(
+            { ...(window.history.state || {}), page: "Auth" },
+            "",
+            currentUrl
+          );
+          return;
+        }
+
+        const nextHistoryState = { ...(window.history.state || {}), page: resolvedTarget };
+
+        if (replace) {
+          window.history.replaceState(nextHistoryState, "", currentUrl);
+        } else if (previousPage !== resolvedTarget || window.history.state?.page !== resolvedTarget) {
+          window.history.pushState(nextHistoryState, "", currentUrl);
+        }
+      } catch {}
     },
     [currentUser]
   );
+
+  const handleGoToCardGod = useCallback(() => {
+    setMobileOpen(false);
+    navigateSafe("CardGod");
+  }, [navigateSafe]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.history) return;
+
+    try {
+      const statePage = window.history.state?.page;
+      const seedPage =
+        statePage && VALID_PAGES.has(statePage)
+          ? statePage
+          : activePageRef.current;
+      const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+
+      if (seedPage === "Auth") {
+        window.history.replaceState(
+          { ...(window.history.state || {}), page: "CardGod" },
+          "",
+          currentUrl
+        );
+        window.history.pushState(
+          { ...(window.history.state || {}), page: "Auth" },
+          "",
+          currentUrl
+        );
+      } else {
+        window.history.replaceState(
+          { ...(window.history.state || {}), page: seedPage },
+          "",
+          currentUrl
+        );
+      }
+    } catch {}
+
+    const handlePopState = (event) => {
+      isPopstateRef.current = true;
+      const currentPageBeforePop = activePageRef.current;
+      const hasSessionUser = Boolean(currentUser || readStoredUser());
+      const rawStatePage = event?.state?.page;
+
+      let nextPage;
+      if (currentPageBeforePop === "Auth" && (!rawStatePage || rawStatePage === "Auth")) {
+        nextPage = "CardGod";
+      } else {
+        nextPage =
+          rawStatePage && VALID_PAGES.has(rawStatePage)
+            ? rawStatePage
+            : hasSessionUser
+              ? "Dashboard"
+              : "CardGod";
+      }
+
+      if (!hasSessionUser && !PUBLIC_PAGES.has(nextPage)) {
+        nextPage = "CardGod";
+      }
+
+      try {
+        const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        window.history.replaceState(
+          { ...(event?.state || {}), page: nextPage },
+          "",
+          currentUrl
+        );
+      } catch {}
+
+      setActivePage(nextPage);
+      Promise.resolve().then(() => {
+        isPopstateRef.current = false;
+      });
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [currentUser]);
 
   const fetchActiveEsims = useCallback(async (targetUserId, signal = undefined) => {
     const numericId = Number(targetUserId);
@@ -1254,8 +1380,8 @@ export default function Dashboard() {
     setTransactions([]);
     setActiveEsims([]);
     setCryptoRates([]);
-    setActivePage("CardGod");
-  }, []);
+    navigateSafe("CardGod", { replace: true });
+  }, [navigateSafe]);
 
   const applyWalletPayload = useCallback((payload) => {
     if (!payload || typeof payload !== "object") return;
@@ -1321,26 +1447,42 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    if (isPopstateRef.current) return;
+
     if (!currentUser && !PUBLIC_PAGES.has(activePage)) {
-      setActivePage("CardGod");
+      navigateSafe("CardGod", { replace: true });
       return;
     }
+
     try {
       const pageToPersist = !currentUser && activePage === "Auth" ? "CardGod" : activePage;
       localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, pageToPersist);
+      if (typeof window !== "undefined" && window.history && window.history.state?.page !== activePage) {
+        const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        window.history.replaceState(
+          { ...(window.history.state || {}), page: activePage },
+          "",
+          currentUrl
+        );
+      }
     } catch {}
-  }, [activePage, currentUser]);
+  }, [activePage, currentUser, navigateSafe]);
 
   useEffect(() => {
     const handleNavigateDashboard = () => {
       navigateSafe("Dashboard");
     };
+    const handleNavigateCardGod = () => {
+      handleGoToCardGod();
+    };
 
     window.addEventListener("cardnext:navigate-dashboard", handleNavigateDashboard);
+    window.addEventListener("cardnext:navigate-cardgod", handleNavigateCardGod);
     return () => {
       window.removeEventListener("cardnext:navigate-dashboard", handleNavigateDashboard);
+      window.removeEventListener("cardnext:navigate-cardgod", handleNavigateCardGod);
     };
-  }, [navigateSafe]);
+  }, [handleGoToCardGod, navigateSafe]);
 
   useEffect(() => {
     const handleWalletUpdated = (event) => {
@@ -1373,7 +1515,7 @@ export default function Dashboard() {
         const nextUser = readStoredUser();
         setCurrentUser(nextUser);
         if (!nextUser) {
-          setActivePage("CardGod");
+          navigateSafe("CardGod", { replace: true });
         }
       }
     };
@@ -1385,7 +1527,7 @@ export default function Dashboard() {
       window.removeEventListener(WALLET_UPDATED_EVENT, handleWalletUpdated);
       window.removeEventListener("storage", handleStorage);
     };
-  }, [applyWalletPayload, currentUser, fetchActiveEsims, loggedInUserId]);
+  }, [applyWalletPayload, currentUser, fetchActiveEsims, loggedInUserId, navigateSafe]);
 
   useEffect(() => {
     if (!currentUser || PUBLIC_PAGES.has(activePage)) return;
@@ -1520,7 +1662,7 @@ export default function Dashboard() {
       <DashboardErrorBoundary>
         <CardGodPage
           setActivePage={navigateSafe}
-          onNavigateAuth={() => setActivePage("Auth")}
+          onNavigateAuth={() => navigateSafe("Auth")}
           onEnterApp={() => navigateSafe("Dashboard")}
         />
       </DashboardErrorBoundary>
@@ -1531,7 +1673,7 @@ export default function Dashboard() {
     return (
       <DashboardErrorBoundary>
         <AuthPage
-          onBackToCardGod={() => setActivePage("CardGod")}
+          onBackToCardGod={() => navigateSafe("CardGod")}
           onLoginSuccess={(userData) => {
             if (userData) {
               const normalizedUser = userData.user || userData;
@@ -1545,7 +1687,7 @@ export default function Dashboard() {
               setWalletBalance(parseFloat(normalizedUser.walletBalance ?? normalizedUser.balance ?? 0) || 0);
               setCryptoBalance(parseFloat(normalizedUser.cryptoBalance ?? normalizedUser.crypto_balance ?? 0) || 0);
             }
-            setActivePage("Dashboard");
+            navigateSafe("Dashboard", { replace: true });
           }}
         />
       </DashboardErrorBoundary>
@@ -2367,6 +2509,7 @@ export default function Dashboard() {
           <Sidebar
             activePage={activePage}
             setActivePage={navigateSafe}
+            onGoToCardGod={handleGoToCardGod}
             mobileOpen={mobileOpen}
             closeMobile={() => setMobileOpen(false)}
             collapsed={sidebarCollapsed}

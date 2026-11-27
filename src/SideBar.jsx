@@ -33,6 +33,7 @@ const navigation = [
 export default function Sidebar({
   activePage,
   setActivePage,
+  onGoToCardGod,
   mobileOpen,
   closeMobile,
   collapsed,
@@ -72,6 +73,27 @@ export default function Sidebar({
 
   const handleNavigate = (page) => {
     setProfileMenuOpen(false);
+    if (page === "CardGod") {
+      if (typeof closeMobile === "function") {
+        closeMobile();
+      }
+      if (typeof onGoToCardGod === "function") {
+        onGoToCardGod();
+        return;
+      }
+      if (typeof setActivePage === "function") {
+        setActivePage("CardGod");
+      }
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("cardnext:navigate-cardgod", {
+            detail: { from: activePage, target: "CardGod" },
+          })
+        );
+      }
+      return;
+    }
+
     if (typeof setActivePage === "function") {
       setActivePage(page);
     }
@@ -137,8 +159,9 @@ export default function Sidebar({
           <button
             type="button"
             className="brand-logo-btn"
-            onClick={() => handleNavigate("Dashboard")}
-            title="Go to Dashboard"
+            onClick={() => handleNavigate("CardGod")}
+            title="Go to CardGod"
+            aria-label="Go to CardGod"
           >
             <div className="brand-svg-container">
               <img
