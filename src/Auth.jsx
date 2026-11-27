@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 
 const SIGNUP_CODE_TTL_SECONDS = 300; // 5 minutes
+const USER_STORAGE_KEY = "cardnext_user";
+const SESSION_TOKEN_STORAGE_KEY = "cardnext_session_token";
 
 const COUNTRY_DIAL_CODES = [
   { code: "NG", name: "Nigeria", dial: "+234" },
@@ -368,6 +370,28 @@ const formatCountdown = (totalSeconds) => {
   return `${mins}:${String(secs).padStart(2, "0")}`;
 };
 
+function persistAuthenticatedSession(user, token) {
+  if (!user) return;
+  try {
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+    if (user.id !== undefined && user.id !== null) {
+      localStorage.setItem("userId", String(user.id));
+    }
+    if (user.email) {
+      localStorage.setItem("cardnext_user_email", String(user.email));
+    }
+    if (user.name) {
+      localStorage.setItem("cardnext_user_name", String(user.name));
+    }
+    if (token) {
+      localStorage.setItem("cardnext_token", String(token));
+      localStorage.setItem(SESSION_TOKEN_STORAGE_KEY, String(token));
+    }
+  } catch {
+    // Ignore storage quota or private-mode errors
+  }
+}
+
 function HoverLetters({ text, className = "", registerNode }) {
   const localRefs = useRef([]);
 
@@ -416,7 +440,7 @@ function ErrorBadge({ message, centered = false }) {
   );
 }
 
-export default function AuthPage({ onLoginSuccess }) {
+export default function AuthPage({ onLoginSuccess, onBackToCardGod }) {
   const [isSignUp, setIsSignUp] = useState(false);
   const [viewState, setViewState] = useState("form"); // "form" | "verify" | "forgot" | "reset-code" | "direct-reset"
   const [showPassword, setShowPassword] = useState(false);
@@ -974,16 +998,15 @@ export default function AuthPage({ onLoginSuccess }) {
         const data = await res.json();
         setIsSubmitting(false);
         if (res.ok && data.user) {
-          localStorage.setItem("userId", data.user.id);
-          localStorage.setItem("cardnext_user_email", data.user.email);
-          localStorage.setItem("cardnext_user_name", data.user.name);
-          if (data.token) localStorage.setItem("cardnext_token", data.token);
+          persistAuthenticatedSession(data.user, data.token);
 
           if (onLoginSuccess) {
             onLoginSuccess({
               id: data.user.id,
               name: data.user.name,
-              email: data.user.email
+              email: data.user.email,
+              user: data.user,
+              sessionToken: data.token
             });
           }
         } else {
@@ -1185,17 +1208,16 @@ export default function AuthPage({ onLoginSuccess }) {
       }
 
       if (data.success && data.user) {
-        localStorage.setItem("userId", data.user.id);
-        localStorage.setItem("cardnext_user_email", data.user.email);
-        localStorage.setItem("cardnext_user_name", data.user.name);
-        if (data.token) localStorage.setItem("cardnext_token", data.token);
+        persistAuthenticatedSession(data.user, data.token);
       }
 
       if (onLoginSuccess && data.user) {
         onLoginSuccess({
           id: data.user.id,
           name: data.user.name,
-          email: data.user.email
+          email: data.user.email,
+          user: data.user,
+          sessionToken: data.token
         });
       }
     } catch (err) {
@@ -1256,7 +1278,13 @@ export default function AuthPage({ onLoginSuccess }) {
       setSuccessMessage("");
       return;
     }
-    goToLogin();
+    if (isSignUp) {
+      goToLogin();
+      return;
+    }
+    if (typeof onBackToCardGod === "function") {
+      onBackToCardGod();
+    }
   };
 
   const renderOtpInputs = (errorKey, showExpiryTimer = false) => {
@@ -1309,7 +1337,8 @@ export default function AuthPage({ onLoginSuccess }) {
     );
   };
 
-  const showBackChevron = viewState !== "form" || isSignUp;
+  const showBackChevron =
+    viewState !== "form" || isSignUp || typeof onBackToCardGod === "function";
 
   return (
     <div className="cn-auth-shell">

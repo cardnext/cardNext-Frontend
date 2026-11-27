@@ -76,17 +76,11 @@ function readStoredUser() {
   }
 }
 
-function resolveInitialPage(hasUser) {
-  if (!hasUser) {
-    return "CardGod";
-  }
+function resolveInitialPage() {
   try {
-    const savedPage = localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY);
-    if (savedPage && VALID_PAGES.has(savedPage)) {
-      return savedPage;
-    }
+    localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, "CardGod");
   } catch {}
-  return "Dashboard";
+  return "CardGod";
 }
 
 class DashboardErrorBoundary extends React.Component {
@@ -107,7 +101,7 @@ class DashboardErrorBoundary extends React.Component {
   }
 
   handleReset = () => {
-    const fallbackPage = readStoredUser() ? "Dashboard" : "CardGod";
+    const fallbackPage = "CardGod";
     try {
       localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, fallbackPage);
       if (typeof window !== "undefined" && window.history) {
@@ -119,6 +113,9 @@ class DashboardErrorBoundary extends React.Component {
       }
     } catch {}
     this.setState({ hasError: false, message: "" });
+    if (typeof this.props.onResetPage === "function") {
+      this.props.onResetPage(fallbackPage);
+    }
   };
 
   render() {
@@ -1176,7 +1173,7 @@ export default function Dashboard() {
   const initialUser = readStoredUser();
 
   const [currentUser, setCurrentUser] = useState(initialUser);
-  const [activePage, setActivePage] = useState(() => resolveInitialPage(Boolean(initialUser)));
+  const [activePage, setActivePage] = useState(() => resolveInitialPage());
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [comingSoonFeature, setComingSoonFeature] = useState(null);
   const [balanceVisible, setBalanceVisible] = useState(true);
@@ -1184,6 +1181,7 @@ export default function Dashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [globalCurrency, setGlobalCurrency] = useState(ALL_CURRENCIES[0]);
 
+  const hasInitializedRef = useRef(false);
   const isPopstateRef = useRef(false);
   const activePageRef = useRef(activePage);
   activePageRef.current = activePage;
@@ -1215,7 +1213,7 @@ export default function Dashboard() {
     (targetPage, options = {}) => {
       const { replace = false, fromPopstate = false } = options;
       const hasSessionUser = Boolean(currentUser || readStoredUser());
-      const fallbackPage = hasSessionUser ? "Dashboard" : "CardGod";
+      const fallbackPage = "CardGod";
 
       let resolvedTarget = VALID_PAGES.has(targetPage) ? targetPage : fallbackPage;
       if (!hasSessionUser && !PUBLIC_PAGES.has(resolvedTarget)) {
@@ -1224,6 +1222,7 @@ export default function Dashboard() {
 
       const previousPage = activePageRef.current;
       setActivePage(resolvedTarget);
+      activePageRef.current = resolvedTarget;
 
       if (typeof window === "undefined" || !window.history || fromPopstate) {
         return;
@@ -1232,16 +1231,12 @@ export default function Dashboard() {
       try {
         const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
 
-        // Ensure pressing Back from "Auth" always steps back into "CardGod"
-        // instead of exiting the app or stepping to an unrelated entry.
         if (!replace && resolvedTarget === "Auth" && previousPage !== "CardGod") {
-          if (window.history.state?.page !== "CardGod") {
-            window.history.replaceState(
-              { ...(window.history.state || {}), page: "CardGod" },
-              "",
-              currentUrl
-            );
-          }
+          window.history.replaceState(
+            { ...(window.history.state || {}), page: "CardGod" },
+            "",
+            currentUrl
+          );
           window.history.pushState(
             { ...(window.history.state || {}), page: "Auth" },
             "",
@@ -1267,36 +1262,30 @@ export default function Dashboard() {
     navigateSafe("CardGod");
   }, [navigateSafe]);
 
+  const handleGoToAuth = useCallback(() => {
+    setMobileOpen(false);
+    navigateSafe("Auth");
+  }, [navigateSafe]);
+
   useEffect(() => {
-    if (typeof window === "undefined" || !window.history) return;
-
     try {
-      const statePage = window.history.state?.page;
-      const seedPage =
-        statePage && VALID_PAGES.has(statePage)
-          ? statePage
-          : activePageRef.current;
-      const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, "CardGod");
+    } catch {}
 
-      if (seedPage === "Auth") {
+    if (typeof window !== "undefined" && window.history) {
+      try {
+        const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
         window.history.replaceState(
           { ...(window.history.state || {}), page: "CardGod" },
           "",
           currentUrl
         );
-        window.history.pushState(
-          { ...(window.history.state || {}), page: "Auth" },
-          "",
-          currentUrl
-        );
-      } else {
-        window.history.replaceState(
-          { ...(window.history.state || {}), page: seedPage },
-          "",
-          currentUrl
-        );
-      }
-    } catch {}
+      } catch {}
+    }
+
+    setActivePage("CardGod");
+    activePageRef.current = "CardGod";
+    hasInitializedRef.current = true;
 
     const handlePopState = (event) => {
       isPopstateRef.current = true;
@@ -1311,9 +1300,7 @@ export default function Dashboard() {
         nextPage =
           rawStatePage && VALID_PAGES.has(rawStatePage)
             ? rawStatePage
-            : hasSessionUser
-              ? "Dashboard"
-              : "CardGod";
+            : "CardGod";
       }
 
       if (!hasSessionUser && !PUBLIC_PAGES.has(nextPage)) {
@@ -1330,6 +1317,7 @@ export default function Dashboard() {
       } catch {}
 
       setActivePage(nextPage);
+      activePageRef.current = nextPage;
       Promise.resolve().then(() => {
         isPopstateRef.current = false;
       });
@@ -1447,7 +1435,7 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (isPopstateRef.current) return;
+    if (!hasInitializedRef.current || isPopstateRef.current) return;
 
     if (!currentUser && !PUBLIC_PAGES.has(activePage)) {
       navigateSafe("CardGod", { replace: true });
@@ -1475,14 +1463,19 @@ export default function Dashboard() {
     const handleNavigateCardGod = () => {
       handleGoToCardGod();
     };
+    const handleNavigateAuth = () => {
+      handleGoToAuth();
+    };
 
     window.addEventListener("cardnext:navigate-dashboard", handleNavigateDashboard);
     window.addEventListener("cardnext:navigate-cardgod", handleNavigateCardGod);
+    window.addEventListener("cardnext:navigate-auth", handleNavigateAuth);
     return () => {
       window.removeEventListener("cardnext:navigate-dashboard", handleNavigateDashboard);
       window.removeEventListener("cardnext:navigate-cardgod", handleNavigateCardGod);
+      window.removeEventListener("cardnext:navigate-auth", handleNavigateAuth);
     };
-  }, [handleGoToCardGod, navigateSafe]);
+  }, [handleGoToAuth, handleGoToCardGod, navigateSafe]);
 
   useEffect(() => {
     const handleWalletUpdated = (event) => {
@@ -1659,10 +1652,10 @@ export default function Dashboard() {
 
   if (activePage === "CardGod") {
     return (
-      <DashboardErrorBoundary>
+      <DashboardErrorBoundary onResetPage={(page) => setActivePage(page)}>
         <CardGodPage
           setActivePage={navigateSafe}
-          onNavigateAuth={() => navigateSafe("Auth")}
+          onNavigateAuth={handleGoToAuth}
           onEnterApp={() => navigateSafe("Dashboard")}
         />
       </DashboardErrorBoundary>
@@ -1671,9 +1664,9 @@ export default function Dashboard() {
 
   if (activePage === "Auth") {
     return (
-      <DashboardErrorBoundary>
+      <DashboardErrorBoundary onResetPage={(page) => setActivePage(page)}>
         <AuthPage
-          onBackToCardGod={() => navigateSafe("CardGod")}
+          onBackToCardGod={handleGoToCardGod}
           onLoginSuccess={(userData) => {
             if (userData) {
               const normalizedUser = userData.user || userData;
@@ -1697,7 +1690,7 @@ export default function Dashboard() {
   const desktopSidebarWidth = sidebarCollapsed ? "80px" : "260px";
 
   return (
-    <DashboardErrorBoundary>
+    <DashboardErrorBoundary onResetPage={(page) => setActivePage(page)}>
       <>
         <style>{`
           @import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Inter:wght@400;500;600;700;800;900&display=swap");
