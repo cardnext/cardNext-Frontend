@@ -908,18 +908,15 @@ export default function WalletPage({ onAddMoney }) {
         }
 
         .wallet-hero-pane {
-          padding: 34px 36px;
+          padding: 32px 34px;
           display: flex;
           flex-direction: column;
           justify-content: space-between;
-          border-radius: 22px;
-          background:
-            radial-gradient(ellipse at 92% 0%, rgba(243, 199, 124, 0.2), transparent 46%),
-            radial-gradient(ellipse at 10% 100%, rgba(168, 96, 42, 0.22), transparent 50%),
-            linear-gradient(145deg, #19110d 0%, #371d10 55%, #22120a 100%);
-          color: #fff;
-          box-shadow: 0 18px 40px rgba(25, 17, 13, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-          border: 1px solid rgba(243, 199, 124, 0.24);
+          border-radius: 18px;
+          background: linear-gradient(135deg, #ffffff 0%, #fcfbf9 100%);
+          color: #202633;
+          box-shadow: 0 12px 32px rgba(45, 33, 20, 0.05);
+          border: 1px solid #e6e1d7;
           position: relative;
         }
 
@@ -939,25 +936,38 @@ export default function WalletPage({ onAddMoney }) {
         }
 
         .wallet-rail-kicker {
-          font-size: 11px;
-          color: #d8c7b4;
+          font-size: 10px;
+          color: #713b17;
           font-weight: 800;
-          letter-spacing: 1.4px;
+          letter-spacing: 1.3px;
           text-transform: uppercase;
+          background: #f6efe6;
+          border: 1px solid #e6d8c6;
+          padding: 4px 10px;
+          border-radius: 999px;
         }
 
         .wallet-eye-toggle {
-          background: transparent;
-          border: none;
+          background: #faf9f6;
+          border: 1px solid #e9e7e2;
+          border-radius: 8px;
           cursor: pointer;
-          color: #d8c7b4;
+          color: #555b63;
           display: grid;
           place-items: center;
-          padding: 2px;
+          width: 30px;
+          height: 30px;
+          transition: background 0.15s ease, color 0.15s ease;
+        }
+        .wallet-eye-toggle:hover {
+          background: #f3efe8;
+          color: #713b17;
         }
 
         .wallet-balance-hero-wrap {
-          margin: 18px 0 6px;
+          margin: 18px 0 10px;
+          padding-bottom: 14px;
+          border-bottom: 1px solid #f0ece4;
         }
 
         .wallet-meta-badges {
@@ -968,25 +978,26 @@ export default function WalletPage({ onAddMoney }) {
         }
 
         .wallet-meta-badge {
-          font-size: 12px;
-          color: #d8c7b4;
-          font-weight: 600;
-          background: rgba(255, 255, 255, 0.06);
+          font-size: 11.5px;
+          color: #5a606a;
+          font-weight: 650;
+          background: #faf9f6;
           padding: 4px 10px;
           border-radius: 8px;
-          border: 1px solid rgba(255, 255, 255, 0.08);
+          border: 1px solid #e9e7e2;
         }
 
         .wallet-meta-badge.gold {
-          color: #f3c77c;
-          background: rgba(243, 199, 124, 0.14);
-          border: 1px solid rgba(243, 199, 124, 0.28);
+          color: #713b17;
+          background: #fcfaf6;
+          border: 1px solid #e7dfd1;
+          font-weight: 700;
         }
 
         .wallet-actions-row {
           display: flex;
           gap: 10px;
-          margin-top: 26px;
+          margin-top: 22px;
           flex-wrap: wrap;
         }
 
@@ -996,7 +1007,7 @@ export default function WalletPage({ onAddMoney }) {
           justify-content: center;
           gap: 7px;
           padding: 10px 16px;
-          border-radius: 12px;
+          border-radius: 11px;
           font-weight: 700;
           font-size: 12px;
           cursor: pointer;
@@ -1012,30 +1023,35 @@ export default function WalletPage({ onAddMoney }) {
         }
 
         .elite-action-btn.primary {
-          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          background: #713b17;
           color: #fff;
+          box-shadow: 0 4px 12px rgba(113, 59, 23, 0.18);
+        }
+        .elite-action-btn.primary:hover {
+          background: #542a12;
         }
 
         .elite-action-btn.dark {
-          background: #0f172a;
+          background: #202633;
           color: #fff;
         }
 
         .elite-action-btn.light {
-          background: #f1ede6;
-          color: #2c241d;
+          background: #faf9f6;
+          color: #713b17;
+          border: 1px solid #e9e7e2;
         }
 
         .elite-action-btn.glass-send {
-          background: rgba(255, 255, 255, 0.1);
-          border: 1px solid rgba(255, 255, 255, 0.15);
-          color: #fff;
+          background: #f6efe6;
+          border: 1px solid #e5d8c7;
+          color: #713b17;
         }
 
         .elite-action-btn.glass-tsq {
-          background: rgba(255, 255, 255, 0.06);
-          color: #f6e7d4;
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: #faf9f6;
+          color: #4b5563;
+          border: 1px solid #e9e7e2;
         }
 
         .wallet-ledger-card {
@@ -1043,8 +1059,8 @@ export default function WalletPage({ onAddMoney }) {
           flex-direction: column;
           gap: 18px;
           padding: 28px;
-          border-radius: 20px;
-          border: 1px solid #eae5de;
+          border-radius: 16px;
+          border: 1px solid #e9e7e2;
           background: #fff;
           box-shadow: 0 7px 24px rgba(37, 30, 22, 0.035);
         }
@@ -1059,13 +1075,13 @@ export default function WalletPage({ onAddMoney }) {
         .wallet-ledger-title {
           font-size: 16px;
           font-weight: 800;
-          color: #111827;
+          color: #202633;
           margin: 0;
         }
 
         .wallet-ledger-sub {
           font-size: 11px;
-          color: #6b7280;
+          color: #858b95;
           margin: 2px 0 0;
         }
 
@@ -1082,7 +1098,7 @@ export default function WalletPage({ onAddMoney }) {
           flex-direction: column;
           gap: 8px;
           padding: 14px 16px;
-          background: #faf8f5;
+          background: #faf9f6;
           border-radius: 12px;
           border: 1px solid #f0ece6;
           transition: background 0.15s;
@@ -1118,13 +1134,13 @@ export default function WalletPage({ onAddMoney }) {
         }
 
         .wallet-tx-icon.credit {
-          background: #d1fae5;
-          color: #065f46;
+          background: #e9f8f0;
+          color: #139768;
         }
 
         .wallet-tx-icon.debit {
-          background: #fee2e2;
-          color: #991b1b;
+          background: #fff0ed;
+          color: #d7655e;
         }
 
         .wallet-tx-meta {
@@ -1134,13 +1150,13 @@ export default function WalletPage({ onAddMoney }) {
         .wallet-tx-type {
           font-size: 13px;
           display: block;
-          color: #111827;
+          color: #202633;
           font-weight: 700;
         }
 
         .wallet-tx-sub {
           font-size: 11px;
-          color: #6b7280;
+          color: #858b95;
           display: block;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -1162,11 +1178,11 @@ export default function WalletPage({ onAddMoney }) {
         }
 
         .wallet-tx-amount.credit {
-          color: #059669;
+          color: #139768;
         }
 
         .wallet-tx-amount.debit {
-          color: #111827;
+          color: #202633;
         }
 
         .wallet-tx-actions {
@@ -1199,19 +1215,19 @@ export default function WalletPage({ onAddMoney }) {
         .wallet-tx-action-btn.summary:hover,
         .wallet-tx-action-btn.summary.active {
           background: #fdf5ef;
-          border-color: #5d3513;
-          color: #5d3513;
+          border-color: #713b17;
+          color: #713b17;
         }
 
         .wallet-tx-action-btn.invoice {
-          background: #fdf5ef;
+          background: #f6efe6;
           border-color: #e2cbb5;
-          color: #5d3513;
+          color: #713b17;
         }
 
         .wallet-tx-action-btn.invoice:hover {
-          background: #5d3513;
-          border-color: #5d3513;
+          background: #713b17;
+          border-color: #713b17;
           color: #ffffff;
         }
 
@@ -1234,7 +1250,7 @@ export default function WalletPage({ onAddMoney }) {
           font-weight: 800;
           text-transform: uppercase;
           letter-spacing: 0.5px;
-          color: #5d3513;
+          color: #713b17;
         }
 
         .wallet-tx-summary-top code {
@@ -1259,20 +1275,30 @@ export default function WalletPage({ onAddMoney }) {
           font-weight: 750;
         }
 
+        @keyframes cardNextBrownGlow {
+          0%, 100% {
+            text-shadow:
+              0 0 8px rgba(113, 59, 23, 0.24),
+              0 0 18px rgba(140, 82, 43, 0.14);
+          }
+          50% {
+            text-shadow:
+              0 0 14px rgba(113, 59, 23, 0.46),
+              0 0 28px rgba(140, 82, 43, 0.28);
+          }
+        }
+
         .wallet-dashboard-balance-num {
-          font-size: clamp(28px, 3vw, 42px);
+          font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+          font-size: clamp(32px, 3.6vw, 44px);
           font-weight: 900;
-          letter-spacing: -1.15px;
-          line-height: 1.08;
-          color: transparent;
-          background-image: linear-gradient(160deg, #ffffff 10%, #f8e3b7 52%, #dfb063 95%);
-          background-clip: text;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          filter: drop-shadow(0 2px 10px rgba(243, 199, 124, 0.14));
+          letter-spacing: -1.1px;
+          line-height: 1.04;
+          color: #713b17;
           margin: 0;
-          font-variant-numeric: tabular-nums;
+          font-variant-numeric: tabular-nums lining-nums;
           display: inline-block;
+          animation: cardNextBrownGlow 2.8s ease-in-out infinite;
         }
 
         .water-drop-card {
@@ -1302,8 +1328,8 @@ export default function WalletPage({ onAddMoney }) {
         }
 
         .water-drop-card.dropping {
-          border-color: #34d399 !important;
-          box-shadow: 0 0 35px rgba(52, 211, 153, 0.5), 0 20px 40px rgba(11, 15, 25, 0.4) !important;
+          border-color: #139768 !important;
+          box-shadow: 0 0 28px rgba(19, 151, 104, 0.28), 0 14px 32px rgba(45, 33, 20, 0.08) !important;
         }
 
         .elite-ambient-glow {
@@ -1312,7 +1338,7 @@ export default function WalletPage({ onAddMoney }) {
           right: -60px;
           width: 220px;
           height: 220px;
-          background: radial-gradient(circle, rgba(243, 199, 124, 0.22) 0%, transparent 70%);
+          background: radial-gradient(circle, rgba(113, 59, 23, 0.14) 0%, rgba(243, 199, 124, 0.12) 45%, transparent 72%);
           border-radius: 50%;
           pointer-events: none;
           animation: ambientPulse 4s ease-in-out infinite alternate;
@@ -1330,8 +1356,8 @@ export default function WalletPage({ onAddMoney }) {
           width: 10px;
           height: 10px;
           border-radius: 50%;
-          background: rgba(52, 211, 153, 0.8);
-          box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.6);
+          background: rgba(19, 151, 104, 0.7);
+          box-shadow: 0 0 0 0 rgba(19, 151, 104, 0.5);
           pointer-events: none;
           z-index: 10;
         }
@@ -1343,28 +1369,28 @@ export default function WalletPage({ onAddMoney }) {
         @keyframes waterRippleExpand {
           0% {
             transform: scale(1);
-            box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7), 0 0 0 0 rgba(16, 185, 129, 0.5);
+            box-shadow: 0 0 0 0 rgba(19, 151, 104, 0.65), 0 0 0 0 rgba(19, 151, 104, 0.4);
             opacity: 1;
           }
           50% { opacity: 0.8; }
           100% {
             transform: scale(45);
-            box-shadow: 0 0 0 40px rgba(52, 211, 153, 0), 0 0 0 80px rgba(16, 185, 129, 0);
+            box-shadow: 0 0 0 40px rgba(19, 151, 104, 0), 0 0 0 80px rgba(19, 151, 104, 0);
             opacity: 0;
           }
         }
 
         .floating-credit-pill {
           position: absolute;
-          top: 20px;
-          right: 24px;
-          background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+          top: 18px;
+          right: 22px;
+          background: linear-gradient(135deg, #139768 0%, #059669 100%);
           color: #fff;
           padding: 6px 14px;
           border-radius: 20px;
           font-size: 12px;
           font-weight: 800;
-          box-shadow: 0 10px 25px rgba(5, 150, 105, 0.4);
+          box-shadow: 0 10px 25px rgba(19, 151, 104, 0.3);
           z-index: 20;
           display: flex;
           align-items: center;
@@ -1414,8 +1440,8 @@ export default function WalletPage({ onAddMoney }) {
         .elite-modal-overlay {
           position: fixed;
           inset: 0;
-          background: rgba(11, 15, 25, 0.6);
-          backdrop-filter: blur(8px);
+          background: rgba(23, 19, 15, 0.65);
+          backdrop-filter: blur(6px);
           display: grid;
           place-items: center;
           z-index: 1000;
@@ -1429,13 +1455,13 @@ export default function WalletPage({ onAddMoney }) {
 
         .elite-modal {
           background: #fff;
-          border-radius: 22px;
+          border-radius: 20px;
           padding: 28px;
           width: 100%;
           max-width: 480px;
           max-height: 90vh;
           overflow-y: auto;
-          box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+          box-shadow: 0 25px 50px rgba(0, 0, 0, 0.22);
           animation: scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
@@ -1457,27 +1483,28 @@ export default function WalletPage({ onAddMoney }) {
           display: inline-flex;
           align-items: center;
           gap: 7px;
-          padding: 7px 12px;
-          background: rgba(255, 255, 255, 0.08);
-          border: 1px solid rgba(243, 199, 124, 0.25);
+          padding: 6px 11px;
+          background: #faf9f6;
+          border: 1px solid #e9e7e2;
           border-radius: 10px;
-          font-size: 12px;
-          color: #f6e7d4;
+          font-size: 11px;
+          color: #333842;
           font-weight: 700;
           cursor: pointer;
           transition: all 0.2s ease;
         }
         .currency-dropdown-toggle:hover, .currency-dropdown-toggle.open {
-          border-color: #f3c77c;
-          background: rgba(255, 255, 255, 0.12);
+          border-color: #d6c8b6;
+          background: #f3efe8;
+          color: #713b17;
         }
         .chevron-icon {
           transition: transform 0.2s ease;
-          color: #d8c7b4;
+          color: #6b7280;
         }
         .chevron-icon.rotate {
           transform: rotate(180deg);
-          color: #f3c77c;
+          color: #713b17;
         }
 
         .currency-dropdown-menu {
@@ -1485,10 +1512,10 @@ export default function WalletPage({ onAddMoney }) {
           right: 0;
           top: calc(100% + 10px);
           width: min(230px, calc(100vw - 32px));
-          background: #19110d;
-          border: 1px solid rgba(243, 199, 124, 0.36);
+          background: #ffffff;
+          border: 1px solid #dfd7cb;
           border-radius: 14px;
-          box-shadow: 0 24px 56px rgba(0, 0, 0, 0.68);
+          box-shadow: 0 20px 48px rgba(37, 30, 22, 0.16);
           z-index: 9999;
           overflow: visible;
           animation: fadeInMenu 0.18s ease-out;
@@ -1497,13 +1524,13 @@ export default function WalletPage({ onAddMoney }) {
 
         .dropdown-menu-header {
           padding: 10px 14px;
-          font-size: 10px;
+          font-size: 9.5px;
           font-weight: 800;
-          color: #b7a490;
+          color: #858b95;
           text-transform: uppercase;
           letter-spacing: 0.8px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-          background: rgba(0, 0, 0, 0.25);
+          border-bottom: 1px solid #f0ece4;
+          background: #faf9f6;
           border-radius: 14px 14px 0 0;
         }
         .currency-dropdown-item {
@@ -1513,16 +1540,16 @@ export default function WalletPage({ onAddMoney }) {
           padding: 10px 14px;
           cursor: pointer;
           transition: background 0.15s;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+          border-bottom: 1px solid #f5f2ec;
         }
         .currency-dropdown-item:last-child { border-bottom: 0; border-radius: 0 0 14px 14px; }
-        .currency-dropdown-item:hover { background: rgba(255, 255, 255, 0.06); }
-        .currency-dropdown-item.selected { background: rgba(243, 199, 124, 0.14); }
+        .currency-dropdown-item:hover { background: #faf8f4; }
+        .currency-dropdown-item.selected { background: #f6efe6; }
 
         .currency-info-meta { display: flex; flex-direction: column; gap: 1px; }
-        .currency-info-meta strong { font-size: 12px; color: #fff; font-weight: 750; }
-        .currency-info-meta span { font-size: 10px; color: #b7a490; font-weight: 500; }
-        .currency-symbol-tag { font-size: 11.5px; font-weight: 800; color: #f3c77c; background: rgba(243, 199, 124, 0.14); padding: 2px 8px; border-radius: 6px; }
+        .currency-info-meta strong { font-size: 12px; color: #202633; font-weight: 750; }
+        .currency-info-meta span { font-size: 10px; color: #858b95; font-weight: 500; }
+        .currency-symbol-tag { font-size: 11.5px; font-weight: 800; color: #713b17; background: #f6efe6; padding: 2px 8px; border-radius: 6px; }
 
         .ben-chip {
           display: inline-flex;
@@ -1579,29 +1606,39 @@ export default function WalletPage({ onAddMoney }) {
           }
 
           .wallet-hero-pane {
-            padding: 12px 12px 11px;
+            padding: 13px 13px 12px;
             border-radius: 14px;
           }
 
           .wallet-rail-kicker {
-            font-size: 8px;
+            font-size: 7.5px;
             letter-spacing: 0.9px;
+            padding: 3px 8px;
+          }
+
+          .wallet-eye-toggle {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
           }
 
           .currency-dropdown-toggle {
-            padding: 4px 8px;
-            border-radius: 8px;
-            font-size: 9.5px;
+            padding: 3.5px 7px;
+            border-radius: 7px;
+            font-size: 9px;
             gap: 4px;
           }
 
           .wallet-balance-hero-wrap {
-            margin: 8px 0 5px;
+            margin: 10px 0 7px;
+            padding-bottom: 9px;
           }
 
           .wallet-dashboard-balance-num {
-            font-size: clamp(20px, 5.4vw, 25px);
-            letter-spacing: -0.6px;
+            font-size: clamp(27px, 8vw, 35px);
+            font-weight: 900;
+            letter-spacing: -0.9px;
+            line-height: 1.02;
           }
 
           .wallet-meta-badge {
@@ -1708,7 +1745,7 @@ export default function WalletPage({ onAddMoney }) {
           <div className="water-drop-card-content">
             <div className="wallet-hero-top">
               <div className="wallet-rail-label-row">
-                <span className="wallet-rail-kicker">TOTAL LIQUIDITY & BANKING RAIL</span>
+                <span className="wallet-rail-kicker">TOTAL LIQUIDITY · {currentCurrency}</span>
                 <button
                   type="button"
                   onClick={togglePrivacyMode}
@@ -2134,7 +2171,7 @@ export default function WalletPage({ onAddMoney }) {
                         onClick={() => setTransferForm(prev => ({ ...prev, amount: String(balanceData.walletBalance || 0) }))}
                         style={{
                           padding: "4px 10px",
-                          background: "#0f172a",
+                          background: "#202633",
                           border: "none",
                           borderRadius: "8px",
                           fontSize: "11px",

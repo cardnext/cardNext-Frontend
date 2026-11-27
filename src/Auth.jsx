@@ -1,10 +1,12 @@
 // Auth.jsx
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
   Lock,
   ShieldCheck,
   ArrowRight,
   ChevronLeft,
+  ChevronDown,
+  Search,
   Check,
   X,
   KeyRound,
@@ -17,6 +19,303 @@ import {
 } from "lucide-react";
 
 const SIGNUP_CODE_TTL_SECONDS = 300; // 5 minutes
+
+const COUNTRY_DIAL_CODES = [
+  { code: "NG", name: "Nigeria", dial: "+234" },
+  { code: "US", name: "United States", dial: "+1" },
+  { code: "GB", name: "United Kingdom", dial: "+44" },
+  { code: "CA", name: "Canada", dial: "+1" },
+  { code: "GH", name: "Ghana", dial: "+233" },
+  { code: "KE", name: "Kenya", dial: "+254" },
+  { code: "ZA", name: "South Africa", dial: "+27" },
+  { code: "AE", name: "United Arab Emirates", dial: "+971" },
+  { code: "DE", name: "Germany", dial: "+49" },
+  { code: "FR", name: "France", dial: "+33" },
+  { code: "IN", name: "India", dial: "+91" },
+  { code: "AU", name: "Australia", dial: "+61" },
+  { code: "NL", name: "Netherlands", dial: "+31" },
+  { code: "IE", name: "Ireland", dial: "+353" },
+  { code: "SA", name: "Saudi Arabia", dial: "+966" },
+  { code: "QA", name: "Qatar", dial: "+974" },
+  { code: "RW", name: "Rwanda", dial: "+250" },
+  { code: "UG", name: "Uganda", dial: "+256" },
+  { code: "TZ", name: "Tanzania", dial: "+255" },
+  { code: "EG", name: "Egypt", dial: "+20" },
+  { code: "BR", name: "Brazil", dial: "+55" },
+  { code: "JP", name: "Japan", dial: "+81" },
+  { code: "SG", name: "Singapore", dial: "+65" }
+];
+
+function CountryFlag({ code }) {
+  switch (code) {
+    case "NG":
+      return (
+        <svg viewBox="0 0 24 18" className="cn-flag-svg" aria-hidden="true">
+          <rect width="8" height="18" x="0" fill="#008751" />
+          <rect width="8" height="18" x="8" fill="#ffffff" />
+          <rect width="8" height="18" x="16" fill="#008751" />
+        </svg>
+      );
+    case "US":
+      return (
+        <svg viewBox="0 0 24 18" className="cn-flag-svg" aria-hidden="true">
+          <rect width="24" height="18" fill="#b22234" />
+          <rect y="2.6" width="24" height="2.2" fill="#ffffff" />
+          <rect y="7.2" width="24" height="2.2" fill="#ffffff" />
+          <rect y="11.8" width="24" height="2.2" fill="#ffffff" />
+          <rect y="15.8" width="24" height="2.2" fill="#ffffff" />
+          <rect width="11" height="9.8" fill="#3c3b6e" />
+        </svg>
+      );
+    case "GB":
+      return (
+        <svg viewBox="0 0 24 18" className="cn-flag-svg" aria-hidden="true">
+          <rect width="24" height="18" fill="#012169" />
+          <path d="M0 0L24 18M24 0L0 18" stroke="#ffffff" strokeWidth="3.2" />
+          <path d="M0 0L24 18M24 0L0 18" stroke="#c8102e" strokeWidth="1.6" />
+          <path d="M12 0V18M0 9H24" stroke="#ffffff" strokeWidth="5" />
+          <path d="M12 0V18M0 9H24" stroke="#c8102e" strokeWidth="3" />
+        </svg>
+      );
+    case "CA":
+      return (
+        <svg viewBox="0 0 24 18" className="cn-flag-svg" aria-hidden="true">
+          <rect width="6" height="18" x="0" fill="#d80621" />
+          <rect width="12" height="18" x="6" fill="#ffffff" />
+          <rect width="6" height="18" x="18" fill="#d80621" />
+          <path
+            d="M12 4L13.3 7.5H16L13.8 9.4L14.6 12.5L12 10.6L9.4 12.5L10.2 9.4L8 7.5H10.7L12 4Z"
+            fill="#d80621"
+          />
+        </svg>
+      );
+    case "GH":
+      return (
+        <svg viewBox="0 0 24 18" className="cn-flag-svg" aria-hidden="true">
+          <rect width="24" height="6" y="0" fill="#ce1126" />
+          <rect width="24" height="6" y="6" fill="#fcd116" />
+          <rect width="24" height="6" y="12" fill="#006b3f" />
+          <path
+            d="M12 6.5L12.8 8.8H15.2L13.3 10.2L14 12.5L12 11.1L10 12.5L10.7 10.2L8.8 8.8H11.2L12 6.5Z"
+            fill="#111111"
+          />
+        </svg>
+      );
+    case "KE":
+      return (
+        <svg viewBox="0 0 24 18" className="cn-flag-svg" aria-hidden="true">
+          <rect width="24" height="5" y="0" fill="#111111" />
+          <rect width="24" height="1.5" y="5" fill="#ffffff" />
+          <rect width="24" height="5" y="6.5" fill="#bb0000" />
+          <rect width="24" height="1.5" y="11.5" fill="#ffffff" />
+          <rect width="24" height="5" y="13" fill="#006600" />
+          <ellipse
+            cx="12"
+            cy="9"
+            rx="2.3"
+            ry="4.5"
+            fill="#bb0000"
+            stroke="#ffffff"
+            strokeWidth="0.9"
+          />
+        </svg>
+      );
+    case "ZA":
+      return (
+        <svg viewBox="0 0 24 18" className="cn-flag-svg" aria-hidden="true">
+          <rect width="24" height="9" y="0" fill="#e03c31" />
+          <rect width="24" height="9" y="9" fill="#001489" />
+          <path d="M0 0L11 9L0 18V0Z" fill="#111111" />
+          <path
+            d="M0 2L9 9L0 16M9 9H24"
+            fill="none"
+            stroke="#007749"
+            strokeWidth="3.2"
+          />
+        </svg>
+      );
+    case "AE":
+      return (
+        <svg viewBox="0 0 24 18" className="cn-flag-svg" aria-hidden="true">
+          <rect width="18" height="6" x="6" y="0" fill="#00732f" />
+          <rect width="18" height="6" x="6" y="6" fill="#ffffff" />
+          <rect width="18" height="6" x="6" y="12" fill="#111111" />
+          <rect width="6" height="18" x="0" fill="#ff0000" />
+        </svg>
+      );
+    case "DE":
+      return (
+        <svg viewBox="0 0 24 18" className="cn-flag-svg" aria-hidden="true">
+          <rect width="24" height="6" y="0" fill="#111111" />
+          <rect width="24" height="6" y="6" fill="#dd0000" />
+          <rect width="24" height="6" y="12" fill="#ffce00" />
+        </svg>
+      );
+    case "FR":
+      return (
+        <svg viewBox="0 0 24 18" className="cn-flag-svg" aria-hidden="true">
+          <rect width="8" height="18" x="0" fill="#002395" />
+          <rect width="8" height="18" x="8" fill="#ffffff" />
+          <rect width="8" height="18" x="16" fill="#ed2939" />
+        </svg>
+      );
+    case "IN":
+      return (
+        <svg viewBox="0 0 24 18" className="cn-flag-svg" aria-hidden="true">
+          <rect width="24" height="6" y="0" fill="#ff9933" />
+          <rect width="24" height="6" y="6" fill="#ffffff" />
+          <rect width="24" height="6" y="12" fill="#138808" />
+          <circle
+            cx="12"
+            cy="9"
+            r="2.1"
+            fill="none"
+            stroke="#000080"
+            strokeWidth="1"
+          />
+        </svg>
+      );
+    case "AU":
+      return (
+        <svg viewBox="0 0 24 18" className="cn-flag-svg" aria-hidden="true">
+          <rect width="24" height="18" fill="#00008b" />
+          <rect width="12" height="9" fill="#012169" />
+          <path d="M0 0L12 9M12 0L0 9" stroke="#ffffff" strokeWidth="1.6" />
+          <path d="M6 0V9M0 4.5H12" stroke="#ffffff" strokeWidth="2.4" />
+          <path d="M6 0V9M0 4.5H12" stroke="#c8102e" strokeWidth="1.2" />
+          <circle cx="18" cy="5" r="1.2" fill="#ffffff" />
+          <circle cx="18" cy="13" r="1.2" fill="#ffffff" />
+          <circle cx="15" cy="9.5" r="1" fill="#ffffff" />
+          <circle cx="21" cy="8.5" r="1" fill="#ffffff" />
+        </svg>
+      );
+    case "NL":
+      return (
+        <svg viewBox="0 0 24 18" className="cn-flag-svg" aria-hidden="true">
+          <rect width="24" height="6" y="0" fill="#ae1c28" />
+          <rect width="24" height="6" y="6" fill="#ffffff" />
+          <rect width="24" height="6" y="12" fill="#21468b" />
+        </svg>
+      );
+    case "IE":
+      return (
+        <svg viewBox="0 0 24 18" className="cn-flag-svg" aria-hidden="true">
+          <rect width="8" height="18" x="0" fill="#169b62" />
+          <rect width="8" height="18" x="8" fill="#ffffff" />
+          <rect width="8" height="18" x="16" fill="#ff883e" />
+        </svg>
+      );
+    case "SA":
+      return (
+        <svg viewBox="0 0 24 18" className="cn-flag-svg" aria-hidden="true">
+          <rect width="24" height="18" fill="#165b33" />
+          <path
+            d="M5 8.5H18.5M14.5 11.5L17.5 12.8"
+            stroke="#ffffff"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+          />
+        </svg>
+      );
+    case "QA":
+      return (
+        <svg viewBox="0 0 24 18" className="cn-flag-svg" aria-hidden="true">
+          <rect width="24" height="18" fill="#8d1b3d" />
+          <path
+            d="M0 0H7L9.2 1L7 2L9.2 3L7 4L9.2 5L7 6L9.2 7L7 8L9.2 9L7 10L9.2 11L7 12L9.2 13L7 14L9.2 15L7 16L9.2 17L7 18H0V0Z"
+            fill="#ffffff"
+          />
+        </svg>
+      );
+    case "RW":
+      return (
+        <svg viewBox="0 0 24 18" className="cn-flag-svg" aria-hidden="true">
+          <rect width="24" height="9" y="0" fill="#00a1de" />
+          <rect width="24" height="4.5" y="9" fill="#fad201" />
+          <rect width="24" height="4.5" y="13.5" fill="#20603d" />
+          <circle cx="18.5" cy="4.7" r="2.2" fill="#e5be01" />
+        </svg>
+      );
+    case "UG":
+      return (
+        <svg viewBox="0 0 24 18" className="cn-flag-svg" aria-hidden="true">
+          <rect width="24" height="3" y="0" fill="#111111" />
+          <rect width="24" height="3" y="3" fill="#fcdc04" />
+          <rect width="24" height="3" y="6" fill="#d90000" />
+          <rect width="24" height="3" y="9" fill="#111111" />
+          <rect width="24" height="3" y="12" fill="#fcdc04" />
+          <rect width="24" height="3" y="15" fill="#d90000" />
+          <circle
+            cx="12"
+            cy="9"
+            r="3.2"
+            fill="#ffffff"
+            stroke="#111111"
+            strokeWidth="0.7"
+          />
+        </svg>
+      );
+    case "TZ":
+      return (
+        <svg viewBox="0 0 24 18" className="cn-flag-svg" aria-hidden="true">
+          <rect width="24" height="18" fill="#1eb53a" />
+          <path d="M0 18L24 0V18H0Z" fill="#00a3dd" />
+          <path d="M0 17.5L23.5 0.5" stroke="#fcd116" strokeWidth="4.2" />
+          <path d="M0 17.5L23.5 0.5" stroke="#111111" strokeWidth="2.4" />
+        </svg>
+      );
+    case "EG":
+      return (
+        <svg viewBox="0 0 24 18" className="cn-flag-svg" aria-hidden="true">
+          <rect width="24" height="6" y="0" fill="#ce1126" />
+          <rect width="24" height="6" y="6" fill="#ffffff" />
+          <rect width="24" height="6" y="12" fill="#111111" />
+          <circle cx="12" cy="9" r="1.8" fill="#c09300" />
+        </svg>
+      );
+    case "BR":
+      return (
+        <svg viewBox="0 0 24 18" className="cn-flag-svg" aria-hidden="true">
+          <rect width="24" height="18" fill="#009b3a" />
+          <polygon points="12,2.2 21.2,9 12,15.8 2.8,9" fill="#ffdf00" />
+          <circle cx="12" cy="9" r="3.4" fill="#002776" />
+          <path
+            d="M8.8 8.4C10.8 8 13.2 8.5 15.2 9.8"
+            fill="none"
+            stroke="#ffffff"
+            strokeWidth="0.9"
+          />
+        </svg>
+      );
+    case "JP":
+      return (
+        <svg viewBox="0 0 24 18" className="cn-flag-svg" aria-hidden="true">
+          <rect width="24" height="18" fill="#ffffff" />
+          <circle cx="12" cy="9" r="4.6" fill="#bc002d" />
+        </svg>
+      );
+    case "SG":
+      return (
+        <svg viewBox="0 0 24 18" className="cn-flag-svg" aria-hidden="true">
+          <rect width="24" height="9" y="0" fill="#ef3340" />
+          <rect width="24" height="9" y="9" fill="#ffffff" />
+          <circle cx="7.4" cy="4.5" r="2.7" fill="#ffffff" />
+          <circle cx="8.6" cy="4.5" r="2.4" fill="#ef3340" />
+          <circle cx="10.2" cy="3.5" r="0.65" fill="#ffffff" />
+          <circle cx="11.2" cy="4.4" r="0.65" fill="#ffffff" />
+          <circle cx="10.8" cy="5.6" r="0.65" fill="#ffffff" />
+          <circle cx="9.6" cy="5.6" r="0.65" fill="#ffffff" />
+          <circle cx="9.2" cy="4.4" r="0.65" fill="#ffffff" />
+        </svg>
+      );
+    default:
+      return (
+        <svg viewBox="0 0 24 18" className="cn-flag-svg" aria-hidden="true">
+          <rect width="24" height="18" fill="#713b17" />
+        </svg>
+      );
+  }
+}
 
 const resolveApiBaseUrl = () => {
   try {
@@ -128,12 +427,19 @@ export default function AuthPage({ onLoginSuccess }) {
   const [verifiedResetCode, setVerifiedResetCode] = useState("");
   const [liveTime, setLiveTime] = useState(() => formatLocalClock(new Date()));
 
+  const [selectedCountryIso, setSelectedCountryIso] = useState("NG");
+  const [countryMenuOpen, setCountryMenuOpen] = useState(false);
+  const [countrySearch, setCountrySearch] = useState("");
+
   const phoneCardRef = useRef(null);
   const orbRef = useRef(null);
   const pointerRef = useRef({ x: null, y: null, active: false });
   const orbCurrentRef = useRef({ x: 0, y: 0 });
   const letterNodesRef = useRef(new Set());
   const letterStatesRef = useRef(new Map());
+  const countryDropdownRef = useRef(null);
+  const countrySearchInputRef = useRef(null);
+  const phoneInputRef = useRef(null);
 
   const [otpDigits, setOtpDigits] = useState(["", "", "", "", "", ""]);
   const otpRefs = useRef([]);
@@ -141,6 +447,8 @@ export default function AuthPage({ onLoginSuccess }) {
 
   const [formData, setFormData] = useState({
     fullName: "",
+    countryCode: "+234",
+    phone: "",
     email: "",
     password: "",
     newPassword: "",
@@ -151,6 +459,24 @@ export default function AuthPage({ onLoginSuccess }) {
   const [successMessage, setSuccessMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const selectedCountry = useMemo(
+    () =>
+      COUNTRY_DIAL_CODES.find((c) => c.code === selectedCountryIso) ||
+      COUNTRY_DIAL_CODES[0],
+    [selectedCountryIso]
+  );
+
+  const filteredCountries = useMemo(() => {
+    const q = countrySearch.trim().toLowerCase();
+    if (!q) return COUNTRY_DIAL_CODES;
+    return COUNTRY_DIAL_CODES.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.code.toLowerCase().includes(q) ||
+        c.dial.includes(q)
+    );
+  }, [countrySearch]);
+
   const registerLetterNode = useCallback((_idx, el) => {
     if (!el) return;
     letterNodesRef.current.add(el);
@@ -158,6 +484,36 @@ export default function AuthPage({ onLoginSuccess }) {
       letterStatesRef.current.set(el, { scale: 1, lift: 0 });
     }
   }, []);
+
+  useEffect(() => {
+    if (!countryMenuOpen) return;
+
+    const handleClickOutside = (e) => {
+      if (
+        countryDropdownRef.current &&
+        !countryDropdownRef.current.contains(e.target)
+      ) {
+        setCountryMenuOpen(false);
+        setCountrySearch("");
+      }
+    };
+
+    const handleEscape = (e) => {
+      if (e.key === "Escape") {
+        setCountryMenuOpen(false);
+        setCountrySearch("");
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    setTimeout(() => countrySearchInputRef.current?.focus(), 40);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [countryMenuOpen]);
 
   useEffect(() => {
     const syncClock = () => setLiveTime(formatLocalClock(new Date()));
@@ -292,6 +648,7 @@ export default function AuthPage({ onLoginSuccess }) {
   const enterOtpView = useCallback((targetView) => {
     lastAutoSubmittedOtpRef.current = "";
     setOtpDigits(["", "", "", "", "", ""]);
+    setCountryMenuOpen(false);
     setViewState(targetView);
     setTimeout(() => otpRefs.current[0]?.focus(), 80);
   }, []);
@@ -339,13 +696,29 @@ export default function AuthPage({ onLoginSuccess }) {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    const nextValue =
+      name === "phone" ? value.replace(/[^\d\s()-]/g, "") : value;
     setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: nextValue
     }));
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: null }));
     }
+  };
+
+  const handleSelectCountry = (country) => {
+    setSelectedCountryIso(country.code);
+    setFormData((prev) => ({
+      ...prev,
+      countryCode: country.dial
+    }));
+    setCountryMenuOpen(false);
+    setCountrySearch("");
+    if (errors.phone) {
+      setErrors((prev) => ({ ...prev, phone: null }));
+    }
+    setTimeout(() => phoneInputRef.current?.focus(), 20);
   };
 
   const handleOtpChange = (index, value) => {
@@ -482,6 +855,7 @@ export default function AuthPage({ onLoginSuccess }) {
     const newErrors = {};
     const otpString = customOtp !== null ? customOtp : otpDigits.join("");
     const trimmedEmail = formData.email.trim();
+    const digitsOnlyPhone = formData.phone.replace(/\D/g, "");
 
     if (type === "forgot") {
       if (!trimmedEmail || !/\S+@\S+\.\S+/.test(trimmedEmail)) {
@@ -538,6 +912,13 @@ export default function AuthPage({ onLoginSuccess }) {
     if (isSignUp) {
       if (!formData.fullName.trim()) {
         newErrors.fullName = "Enter your full name";
+      }
+      if (
+        !digitsOnlyPhone ||
+        digitsOnlyPhone.length < 7 ||
+        digitsOnlyPhone.length > 15
+      ) {
+        newErrors.phone = "Enter a valid phone number";
       }
       if (!isPasswordStrong) {
         newErrors.password = "Complete all password requirements below";
@@ -648,6 +1029,12 @@ export default function AuthPage({ onLoginSuccess }) {
     const otpString = otpDigits.join("");
     const trimmedEmail = formData.email.trim();
     const trimmedName = formData.fullName.trim();
+    const cleanedLocalPhone = formData.phone
+      .replace(/\D/g, "")
+      .replace(/^0+/, "");
+    const formattedPhone = cleanedLocalPhone
+      ? `${formData.countryCode}${cleanedLocalPhone}`
+      : "";
 
     if (viewState === "forgot") {
       if (!validate("forgot")) return;
@@ -745,7 +1132,13 @@ export default function AuthPage({ onLoginSuccess }) {
       : `${API_BASE_URL}/api/auth/login`;
 
     const payload = isSignUp
-      ? { fullName: trimmedName, email: trimmedEmail, password: formData.password }
+      ? {
+          fullName: trimmedName,
+          countryCode: formData.countryCode,
+          phone: formattedPhone,
+          email: trimmedEmail,
+          password: formData.password
+        }
       : { email: trimmedEmail, password: formData.password };
 
     try {
@@ -821,6 +1214,7 @@ export default function AuthPage({ onLoginSuccess }) {
     setIsSignUp(true);
     setViewState("form");
     setVerifiedResetCode("");
+    setCountryMenuOpen(false);
     setErrors({});
     setSuccessMessage("");
   };
@@ -829,11 +1223,13 @@ export default function AuthPage({ onLoginSuccess }) {
     setIsSignUp(false);
     setViewState("form");
     setVerifiedResetCode("");
+    setCountryMenuOpen(false);
     setErrors({});
     setSuccessMessage("");
   };
 
   const handleBackClick = () => {
+    setCountryMenuOpen(false);
     if (viewState === "reset-code") {
       setVerifiedResetCode("");
       setViewState("forgot");
@@ -1299,7 +1695,7 @@ export default function AuthPage({ onLoginSuccess }) {
             </div>
           )}
 
-          {/* SECOND SCREEN: CREATE ACCOUNT ({ fullName, email, password }) */}
+          {/* SECOND SCREEN: CREATE ACCOUNT ({ fullName, countryCode, phone, email, password }) */}
           {isSignUp && viewState === "form" && (
             <div className="cn-view-fade">
               <h1 className="cn-title">
@@ -1347,6 +1743,125 @@ export default function AuthPage({ onLoginSuccess }) {
                     />
                   </div>
                   <ErrorBadge message={errors.fullName} />
+                </div>
+
+                <div className="cn-field-group">
+                  <div
+                    ref={countryDropdownRef}
+                    className={`cn-pill-input cn-phone-row ${
+                      errors.phone ? "has-error" : ""
+                    } ${countryMenuOpen ? "menu-open" : ""}`}
+                  >
+                    <button
+                      type="button"
+                      className="cn-country-trigger"
+                      aria-haspopup="listbox"
+                      aria-expanded={countryMenuOpen}
+                      aria-label={`Country dial code ${selectedCountry.name} ${selectedCountry.dial}`}
+                      onClick={() => {
+                        setCountryMenuOpen((prev) => !prev);
+                        setCountrySearch("");
+                      }}
+                    >
+                      <CountryFlag code={selectedCountry.code} />
+                      <span className="cn-country-dial">{selectedCountry.dial}</span>
+                      <ChevronDown
+                        size={13}
+                        strokeWidth={2.4}
+                        className={`cn-country-chevron ${
+                          countryMenuOpen ? "rotated" : ""
+                        }`}
+                      />
+                    </button>
+
+                    <span className="cn-phone-divider" aria-hidden="true" />
+
+                    <input
+                      ref={phoneInputRef}
+                      type="tel"
+                      name="phone"
+                      placeholder="Phone number"
+                      aria-label="Phone number"
+                      autoComplete="tel-national"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                    />
+
+                    {countryMenuOpen && (
+                      <div
+                        className="cn-country-popover"
+                        role="listbox"
+                        aria-label="Select country"
+                      >
+                        <div className="cn-country-search-box">
+                          <Search size={13} className="cn-country-search-icon" />
+                          <input
+                            ref={countrySearchInputRef}
+                            type="text"
+                            placeholder="Search country or +code..."
+                            value={countrySearch}
+                            onChange={(e) => setCountrySearch(e.target.value)}
+                            className="cn-country-search-input"
+                          />
+                          {countrySearch && (
+                            <button
+                              type="button"
+                              className="cn-country-clear-btn"
+                              onClick={() => setCountrySearch("")}
+                              aria-label="Clear search"
+                            >
+                              <X size={12} />
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="cn-country-list">
+                          {filteredCountries.length === 0 ? (
+                            <div className="cn-country-empty">
+                              No matching country
+                            </div>
+                          ) : (
+                            filteredCountries.map((country) => {
+                              const isSelected =
+                                country.code === selectedCountry.code;
+                              return (
+                                <button
+                                  key={`${country.code}-${country.dial}`}
+                                  type="button"
+                                  role="option"
+                                  aria-selected={isSelected}
+                                  className={`cn-country-option ${
+                                    isSelected ? "selected" : ""
+                                  }`}
+                                  onClick={() => handleSelectCountry(country)}
+                                >
+                                  <span className="cn-country-option-left">
+                                    <CountryFlag code={country.code} />
+                                    <span className="cn-country-name">
+                                      {country.name}
+                                    </span>
+                                  </span>
+                                  <span className="cn-country-option-right">
+                                    <span className="cn-country-option-dial">
+                                      {country.dial}
+                                    </span>
+                                    {isSelected && (
+                                      <Check
+                                        size={13}
+                                        strokeWidth={2.5}
+                                        className="cn-country-check"
+                                      />
+                                    )}
+                                  </span>
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <ErrorBadge message={errors.phone} />
                 </div>
 
                 <div className="cn-field-group">
@@ -1569,7 +2084,7 @@ export default function AuthPage({ onLoginSuccess }) {
           display: flex;
           flex-direction: column;
           justify-content: flex-start;
-          padding-top: 44px;
+          padding-top: 32px;
         }
 
         .cn-view-fade {
@@ -1608,7 +2123,7 @@ export default function AuthPage({ onLoginSuccess }) {
         }
 
         .cn-subtitle {
-          margin: 0 0 28px;
+          margin: 0 0 24px;
           font-size: 13.5px;
           font-weight: 500;
           color: #6e5f52;
@@ -1629,10 +2144,11 @@ export default function AuthPage({ onLoginSuccess }) {
         }
 
         .cn-field-group {
-          margin-bottom: 14px;
+          margin-bottom: 13px;
         }
 
         .cn-pill-input {
+          position: relative;
           height: 44px;
           border-radius: 999px;
           border: 1.35px solid #ddd4c4;
@@ -1642,6 +2158,219 @@ export default function AuthPage({ onLoginSuccess }) {
           padding: 0 16px;
           gap: 8px;
           transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+        }
+
+        .cn-pill-input.cn-phone-row {
+          padding-left: 8px;
+          gap: 8px;
+        }
+
+        .cn-pill-input.menu-open {
+          border-color: #713b17;
+          box-shadow: 0 0 0 3px rgba(113, 59, 23, 0.12);
+        }
+
+        .cn-country-trigger {
+          height: 30px;
+          padding: 0 8px;
+          border-radius: 999px;
+          border: 1px solid #ebe2d3;
+          background: #faf6ee;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          cursor: pointer;
+          font-family: inherit;
+          color: #2b180d;
+          flex-shrink: 0;
+          transition: background 0.15s ease, border-color 0.15s ease;
+        }
+
+        .cn-country-trigger:hover {
+          background: #f4ecdd;
+          border-color: #d6c3a5;
+        }
+
+        .cn-flag-svg {
+          width: 17px;
+          height: 12.5px;
+          border-radius: 2.5px;
+          box-shadow: 0 0 0 0.5px rgba(24, 18, 14, 0.18);
+          flex-shrink: 0;
+          display: block;
+        }
+
+        .cn-country-dial {
+          font-size: 12.5px;
+          font-weight: 700;
+          color: #2b180d;
+          letter-spacing: -0.2px;
+        }
+
+        .cn-country-chevron {
+          color: #7c6857;
+          transition: transform 0.18s ease;
+        }
+
+        .cn-country-chevron.rotated {
+          transform: rotate(180deg);
+          color: #713b17;
+        }
+
+        .cn-phone-divider {
+          width: 1px;
+          height: 18px;
+          background: #e2d9c8;
+          flex-shrink: 0;
+        }
+
+        .cn-country-popover {
+          position: absolute;
+          top: calc(100% + 7px);
+          left: 0;
+          right: 0;
+          background: #fffdf9;
+          border: 1px solid #dfd3be;
+          border-radius: 18px;
+          box-shadow: 0 18px 36px -12px rgba(35, 22, 14, 0.26);
+          z-index: 30;
+          overflow: hidden;
+          animation: cnDropdownIn 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes cnDropdownIn {
+          from {
+            opacity: 0;
+            transform: translateY(-6px) scale(0.985);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        .cn-country-search-box {
+          display: flex;
+          align-items: center;
+          gap: 7px;
+          padding: 9px 12px;
+          background: #faf6ee;
+          border-bottom: 1px solid #ebe2d3;
+        }
+
+        .cn-country-search-icon {
+          color: #8c7d6e;
+          flex-shrink: 0;
+        }
+
+        .cn-country-search-input {
+          flex: 1;
+          min-width: 0;
+          border: 0;
+          outline: 0;
+          background: transparent;
+          font-family: inherit;
+          font-size: 12.5px;
+          font-weight: 500;
+          color: #18120e;
+        }
+
+        .cn-country-search-input::placeholder {
+          color: #9b8d7e;
+        }
+
+        .cn-country-clear-btn {
+          background: rgba(113, 59, 23, 0.1);
+          border: 0;
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          color: #713b17;
+          cursor: pointer;
+          padding: 0;
+        }
+
+        .cn-country-list {
+          max-height: 196px;
+          overflow-y: auto;
+          padding: 5px;
+        }
+
+        .cn-country-list::-webkit-scrollbar {
+          width: 5px;
+        }
+
+        .cn-country-list::-webkit-scrollbar-thumb {
+          background: #d8ccb8;
+          border-radius: 99px;
+        }
+
+        .cn-country-option {
+          width: 100%;
+          border: 0;
+          background: transparent;
+          padding: 8px 10px;
+          border-radius: 11px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          cursor: pointer;
+          font-family: inherit;
+          text-align: left;
+          transition: background 0.12s ease;
+        }
+
+        .cn-country-option:hover {
+          background: #f6efe2;
+        }
+
+        .cn-country-option.selected {
+          background: #f2e6d0;
+        }
+
+        .cn-country-option-left {
+          display: inline-flex;
+          align-items: center;
+          gap: 9px;
+          min-width: 0;
+        }
+
+        .cn-country-name {
+          font-size: 12.5px;
+          font-weight: 600;
+          color: #18120e;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .cn-country-option-right {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          flex-shrink: 0;
+        }
+
+        .cn-country-option-dial {
+          font-size: 12px;
+          font-weight: 700;
+          color: #713b17;
+        }
+
+        .cn-country-check {
+          color: #713b17;
+        }
+
+        .cn-country-empty {
+          padding: 16px 12px;
+          text-align: center;
+          font-size: 12px;
+          font-weight: 500;
+          color: #8c7d6e;
         }
 
         .cn-pill-input.with-action {
@@ -1731,7 +2460,7 @@ export default function AuthPage({ onLoginSuccess }) {
         .cn-cta-row {
           display: flex;
           justify-content: flex-end;
-          margin-top: 22px;
+          margin-top: 20px;
         }
 
         .cn-gold-btn {

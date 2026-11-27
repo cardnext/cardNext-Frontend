@@ -1,7 +1,21 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
-  Settings, CircleHelp, MoreHorizontal, X, ChevronLeft, ChevronRight, LogOut, ShieldCheck,
-  LayoutDashboard, WalletCards, Plane, Smartphone, ReceiptText, Gift, Bitcoin
+  Settings,
+  CircleHelp,
+  MoreHorizontal,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  LogOut,
+  ShieldCheck,
+  LayoutDashboard,
+  WalletCards,
+  Plane,
+  Smartphone,
+  ReceiptText,
+  Gift,
+  Bitcoin,
+  Wrench,
 } from "lucide-react";
 import cardNextLogo from "./assets/cardnext.png";
 
@@ -12,27 +26,36 @@ const navigation = [
   { label: "Bills & Utilities", icon: ReceiptText },
   { label: "Gift Cards", icon: Gift },
   { label: "Crypto & RWA", icon: Bitcoin },
+  { label: "Tools", icon: Wrench },
   { label: "Travel & Flights", icon: Plane },
 ];
 
-export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMobile, collapsed, setCollapsed }) {
+export default function Sidebar({
+  activePage,
+  setActivePage,
+  mobileOpen,
+  closeMobile,
+  collapsed,
+  setCollapsed,
+  onSignOut,
+}) {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const popoverRef = useRef(null);
 
-  // Read active user details dynamically from localStorage
-  const userEmail = localStorage.getItem("cardnext_user_email") || "john.doe@cardnext.io";
-  const fullName = localStorage.getItem("cardnext_user_name") || "CardNext User";
+  const userEmail =
+    localStorage.getItem("cardnext_user_email") || "john.doe@cardnext.io";
+  const fullName =
+    localStorage.getItem("cardnext_user_name") || "CardNext User";
 
-  // Compute initials for avatar (e.g. "John Doe" -> "JD")
-  const initials = fullName
-    .split(" ")
-    .filter(Boolean)
-    .map((n) => n[0])
-    .join("")
-    .substring(0, 2)
-    .toUpperCase() || "CN";
+  const initials =
+    fullName
+      .split(" ")
+      .filter(Boolean)
+      .map((n) => n[0])
+      .join("")
+      .substring(0, 2)
+      .toUpperCase() || "CN";
 
-  // Close popover when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (popoverRef.current && !popoverRef.current.contains(event.target)) {
@@ -58,7 +81,7 @@ export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMo
     if (page === "Dashboard" && typeof window !== "undefined") {
       window.dispatchEvent(
         new CustomEvent("cardnext:navigate-dashboard", {
-          detail: { from: activePage, target: "Dashboard" }
+          detail: { from: activePage, target: "Dashboard" },
         })
       );
     }
@@ -68,9 +91,18 @@ export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMo
     e.preventDefault();
     e.stopPropagation();
     setProfileMenuOpen(false);
-    if (typeof closeMobile === "function") closeMobile();
+    if (typeof closeMobile === "function") {
+      closeMobile();
+    }
+    if (typeof onSignOut === "function") {
+      onSignOut();
+      return;
+    }
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("cardnext:sign-out"));
+    }
     if (typeof setActivePage === "function") {
-      setActivePage("Auth");
+      setActivePage("CardGod");
     }
   };
 
@@ -84,9 +116,12 @@ export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMo
           onClick={closeMobile}
         />
       )}
-      <aside className={`sidebar ${mobileOpen ? "sidebar-open" : ""} ${collapsed ? "collapsed" : ""}`}>
 
-        {/* Embedded Center-Edge Toggle Button */}
+      <aside
+        className={`sidebar ${mobileOpen ? "sidebar-open" : ""} ${
+          collapsed ? "collapsed" : ""
+        }`}
+      >
         <button
           type="button"
           className="collapse-toggle-embedded"
@@ -98,7 +133,6 @@ export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMo
           {collapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
         </button>
 
-        {/* Brand Header with Clickable Logo Navigation */}
         <div className="brand">
           <button
             type="button"
@@ -127,7 +161,6 @@ export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMo
 
         {!collapsed && <p className="nav-caption">WORKSPACE</p>}
 
-        {/* Main Navigation Items */}
         <nav className="sidebar-nav" aria-label="Main navigation">
           {navigation.map(({ label, icon: Icon }) => {
             const isActive = activePage === label;
@@ -148,7 +181,6 @@ export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMo
           })}
         </nav>
 
-        {/* Sidebar Bottom Section */}
         <div className="sidebar-bottom">
           {!collapsed && <p className="nav-caption">PREFERENCES</p>}
 
@@ -165,23 +197,28 @@ export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMo
 
           <button
             type="button"
-            className={`nav-item ${activePage === "Help & Support" ? "active" : ""}`}
+            className={`nav-item ${
+              activePage === "Help & Support" ? "active" : ""
+            }`}
             onClick={() => handleNavigate("Help & Support")}
             title={collapsed ? "Help & Support" : undefined}
           >
             <CircleHelp size={18} strokeWidth={1.9} />
             {!collapsed && <span>Help &amp; Support</span>}
-            {activePage === "Help & Support" && <span className="active-indicator" />}
+            {activePage === "Help & Support" && (
+              <span className="active-indicator" />
+            )}
           </button>
 
-          {/* Premium Profile Section with Interactive Popover */}
           <div className="profile-container" ref={popoverRef}>
             {profileMenuOpen && (
               <div className="profile-popover">
                 <div className="popover-user-info">
                   <strong>{fullName}</strong>
                   <span>{userEmail}</span>
-                  <span className="popover-badge"><ShieldCheck size={12} /> Premium Tier 3</span>
+                  <span className="popover-badge">
+                    <ShieldCheck size={12} /> Premium Tier 3
+                  </span>
                 </div>
                 <div className="popover-divider" />
                 <button
@@ -223,11 +260,9 @@ export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMo
               )}
             </div>
           </div>
-
         </div>
       </aside>
 
-      {/* EMBEDDED SIDEBAR STYLING */}
       <style>{`
         .sidebar {
           width: 260px;
@@ -238,9 +273,9 @@ export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMo
           display: flex;
           flex-direction: column;
           padding: 28px 16px 20px;
-          color: #fff;
-          background: linear-gradient(180deg, #131412 0%, #0c0d0c 100%);
-          border-right: 1px solid rgba(255, 255, 255, 0.06);
+          color: #202633;
+          background: #f7f6f3;
+          border-right: 1px solid #e9e7e2;
           overflow: visible !important;
           transition: width .28s cubic-bezier(0.4, 0, 0.2, 1), transform .28s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -252,7 +287,6 @@ export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMo
           align-items: center;
         }
 
-        /* Embedded Center-Edge Toggle Button */
         .collapse-toggle-embedded {
           position: absolute;
           top: 50%;
@@ -260,31 +294,31 @@ export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMo
           transform: translateY(-50%);
           width: 24px;
           height: 44px;
-          background: #1c1e1c;
-          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: #ffffff;
+          border: 1px solid #e5e1d8;
           border-radius: 6px;
-          color: #d4af37;
+          color: #713b17;
           display: grid;
           place-items: center;
           cursor: pointer;
           z-index: 120;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-          transition: background 0.2s, color 0.2s, transform 0.2s;
+          box-shadow: 0 4px 12px rgba(37, 30, 22, 0.08);
+          transition: background 0.2s, color 0.2s, transform 0.2s, border-color 0.2s;
         }
         .collapse-toggle-embedded:hover {
-          background: #252825;
-          color: #ffdf9b;
+          background: #f4f1ec;
+          color: #4a240c;
+          border-color: #d2c2ac;
           transform: translateY(-50%) scale(1.05);
         }
 
-        /* Brand Header Styling */
         .brand {
           display: flex;
           align-items: center;
           justify-content: space-between;
           padding: 0 0 12px 0;
           width: 100%;
-          color: #fff;
+          color: #202633;
         }
         .sidebar.collapsed .brand {
           justify-content: center;
@@ -304,7 +338,7 @@ export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMo
         }
 
         .brand-logo-btn:focus-visible {
-          outline: 2px solid rgba(243, 199, 124, 0.5);
+          outline: 2px solid rgba(113, 59, 23, 0.45);
           border-radius: 6px;
         }
 
@@ -332,7 +366,7 @@ export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMo
           object-position: left center;
           margin-left: 0px;
           margin-right: -10px;
-          filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.8));
+          filter: drop-shadow(0 3px 10px rgba(37, 30, 22, 0.12));
           transition: transform 0.18s ease;
         }
 
@@ -340,7 +374,6 @@ export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMo
           transform: scale(1.02);
         }
 
-        /* Fixed larger logo size when collapsed so it's not too small */
         .sidebar.collapsed .brand-svg-logo {
           height: 76px;
           margin-left: 0;
@@ -349,12 +382,13 @@ export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMo
 
         .nav-caption {
           margin: 0 10px 10px;
-          color: #636763;
+          color: #8c857b;
           font-size: 9px;
           font-weight: 800;
           letter-spacing: 1.5px;
           white-space: nowrap;
         }
+
         .sidebar-nav {
           display: flex;
           flex-direction: column;
@@ -362,7 +396,6 @@ export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMo
           width: 100%;
         }
 
-        /* Navigation Items */
         .nav-item {
           position: relative;
           display: flex;
@@ -372,11 +405,11 @@ export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMo
           min-height: 46px;
           padding: 0 14px;
           border-radius: 10px;
-          color: #9a9e98;
+          color: #5a564f;
           background: transparent;
           text-align: left;
           font-size: 12.5px;
-          font-weight: 550;
+          font-weight: 600;
           transition: color .2s, background .2s, transform .15s;
           white-space: nowrap;
           border: 0;
@@ -387,14 +420,14 @@ export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMo
           padding: 0;
         }
         .nav-item:hover {
-          color: #fff;
-          background: rgba(255, 255, 255, 0.05);
+          color: #202633;
+          background: rgba(113, 59, 23, 0.06);
         }
         .nav-item.active {
-          color: #fff;
-          background: linear-gradient(135deg, rgba(113, 59, 23, 0.95) 0%, rgba(61, 31, 16, 0.95) 100%);
-          box-shadow: inset 0 0 0 1px rgba(243, 199, 124, 0.25), 0 4px 12px rgba(113, 59, 23, 0.2);
-          font-weight: 650;
+          color: #ffffff;
+          background: linear-gradient(135deg, #713b17 0%, #4b240d 100%);
+          box-shadow: inset 0 0 0 1px rgba(243, 199, 124, 0.25), 0 6px 14px rgba(113, 59, 23, 0.18);
+          font-weight: 700;
         }
         .nav-item.active > svg {
           color: #f3c77c;
@@ -405,8 +438,7 @@ export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMo
           position: absolute;
           right: -16px;
           border-radius: 4px 0 0 4px;
-          background: #f3c77c;
-          box-shadow: 0 0 10px #f3c77c;
+          background: #713b17;
         }
         .sidebar.collapsed .active-indicator {
           right: -10px;
@@ -416,13 +448,12 @@ export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMo
           margin-top: auto;
           padding-top: 24px;
           width: 100%;
-          border-top: 1px solid rgba(255, 255, 255, 0.06);
+          border-top: 1px solid #e9e7e2;
         }
         .sidebar-bottom .nav-caption {
           margin-bottom: 8px;
         }
 
-        /* Profile Section */
         .profile-container {
           position: relative;
           width: 100%;
@@ -435,19 +466,21 @@ export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMo
           padding: 10px 8px;
           cursor: pointer;
           border-radius: 10px;
-          transition: background 0.2s;
-          background: rgba(255, 255, 255, 0.02);
-          border: 1px solid rgba(255, 255, 255, 0.04);
+          transition: background 0.2s, border-color 0.2s;
+          background: #ffffff;
+          border: 1px solid #e9e7e2;
+          box-shadow: 0 4px 14px rgba(37, 30, 22, 0.03);
         }
         .profile:hover {
-          background: rgba(255, 255, 255, 0.06);
-          border-color: rgba(255, 255, 255, 0.08);
+          background: #faf9f6;
+          border-color: #d8cfc2;
         }
         .sidebar.collapsed .profile {
           justify-content: center;
           padding: 8px 0;
           border: none;
           background: transparent;
+          box-shadow: none;
         }
 
         .profile-image {
@@ -458,10 +491,10 @@ export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMo
           height: 36px;
           border-radius: 50%;
           color: #fff;
-          background: linear-gradient(135deg, #b48a68 0%, #543424 100%);
+          background: linear-gradient(135deg, #8c522b 0%, #4b240d 100%);
           font-size: 11px;
           font-weight: 800;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          box-shadow: 0 2px 8px rgba(75, 36, 13, 0.2);
         }
         .profile-details {
           display: flex;
@@ -473,32 +506,33 @@ export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMo
         .profile-details strong {
           font-size: 11.5px;
           font-weight: 700;
-          color: #fff;
+          color: #202633;
           white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
         .premium-label {
-          color: #f3c77c;
+          color: #8c522b;
           font-size: 9.5px;
-          font-weight: 650;
+          font-weight: 700;
           letter-spacing: 0.3px;
           white-space: nowrap;
         }
         .profile-more {
-          color: #777b73;
+          color: #858b95;
           flex: 0 0 auto;
         }
 
-        /* Profile Popover Menu */
         .profile-popover {
           position: absolute;
           bottom: calc(100% + 12px);
           left: 0;
           z-index: 9999;
           width: 230px;
-          background: #181a18;
-          border: 1px solid rgba(243, 199, 124, 0.3);
+          background: #ffffff;
+          border: 1px solid #e5e1d8;
           border-radius: 12px;
-          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+          box-shadow: 0 18px 42px rgba(37, 30, 22, 0.14);
           padding: 14px;
           pointer-events: auto !important;
         }
@@ -511,30 +545,31 @@ export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMo
         }
         .popover-user-info strong {
           font-size: 12.5px;
-          color: #fff;
-          font-weight: 700;
+          color: #202633;
+          font-weight: 750;
         }
         .popover-user-info span {
           font-size: 10px;
-          color: #8c928c;
+          color: #858b95;
+          word-break: break-word;
         }
         .popover-badge {
           display: inline-flex;
           align-items: center;
           gap: 4px;
-          margin-top: 5px;
+          margin-top: 6px;
           width: fit-content;
           padding: 3px 8px;
-          background: rgba(243, 199, 124, 0.12);
-          color: #f3c77c;
-          border: 1px solid rgba(243, 199, 124, 0.2);
+          background: #f6efe6;
+          color: #713b17;
+          border: 1px solid #e5d6c3;
           border-radius: 5px;
           font-size: 9.5px;
           font-weight: 750;
         }
         .popover-divider {
           height: 1px;
-          background: rgba(255, 255, 255, 0.08);
+          background: #e9e7e2;
           margin: 10px 0;
         }
         .popover-action-btn {
@@ -543,27 +578,27 @@ export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMo
           gap: 8px;
           width: 100%;
           padding: 10px 12px;
-          background: transparent;
-          color: #ef4444;
+          background: #fff4f3;
+          color: #c53030;
           font-size: 12px;
           font-weight: 700;
           border-radius: 8px;
           cursor: pointer;
           transition: background 0.15s;
           text-align: left;
-          border: 0;
+          border: 1px solid #f7d6d3;
           outline: none;
           pointer-events: auto !important;
         }
         .popover-action-btn:hover {
-          background: rgba(239, 68, 68, 0.2);
+          background: #ffe5e2;
         }
 
         .mobile-close {
           display: none;
           background: transparent;
           border: 0;
-          color: #fff;
+          color: #202633;
           cursor: pointer;
         }
         .sidebar-scrim {
@@ -581,11 +616,41 @@ export default function Sidebar({ activePage, setActivePage, mobileOpen, closeMo
           .sidebar.sidebar-open {
             transform: translateX(0);
           }
+          .sidebar .brand {
+            padding: 0 0 12px 0;
+          }
+          .sidebar .brand-svg-container {
+            height: 72px;
+            padding-left: 2px;
+          }
+          .sidebar .brand-svg-logo {
+            height: 118px;
+            margin-left: 0px;
+            margin-right: -10px;
+          }
+          .sidebar .nav-caption {
+            margin: 0 10px 10px;
+          }
+          .sidebar .sidebar-nav {
+            gap: 6px;
+          }
+          .sidebar .nav-item {
+            gap: 14px;
+            min-height: 46px;
+            padding: 0 14px;
+          }
+          .sidebar .active-indicator {
+            right: -16px;
+          }
+          .sidebar .sidebar-bottom {
+            margin-top: auto;
+            padding-top: 24px;
+          }
           .sidebar-scrim {
             display: block;
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.5);
+            background: rgba(32, 24, 16, 0.35);
             z-index: 90;
           }
           .mobile-close {

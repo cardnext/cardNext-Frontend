@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Zap, Tv, Wifi, Smartphone, ShieldCheck,
   Check, X, ArrowRight, History, AlertCircle, CheckCircle2,
-  Ticket, Trophy, GraduationCap, Loader2, Lock, FileText, Download, RefreshCw
+  Ticket, Trophy, GraduationCap, Loader2, Lock, FileText, Download, RefreshCw, ChevronDown
 } from "lucide-react";
 
 const resolveApiBase = () => {
@@ -246,6 +246,7 @@ export default function BillsPage() {
   const [walletBalance, setWalletBalance] = useState(0);
   const [recentBills, setRecentBills] = useState([]);
   const [isSyncingLedger, setIsSyncingLedger] = useState(false);
+  const [historyDropdownOpen, setHistoryDropdownOpen] = useState(false);
 
   const [isVerifying, setIsVerifying] = useState(false);
   const [verifiedCustomerName, setVerifiedCustomerName] = useState(null);
@@ -763,7 +764,7 @@ export default function BillsPage() {
       <section className="bills-banner">
         <div className="bills-banner-glow" />
         <div className="bills-banner-text">
-          <h2>Bills & Utilities</h2>
+          <h2>Bills &amp; Utilities</h2>
         </div>
         <div className="banner-wallet-preview">
           <small>Wallet Balance</small>
@@ -771,7 +772,7 @@ export default function BillsPage() {
         </div>
       </section>
 
-      <div className="bills-grid-layout">
+      <div className="bills-stack-layout">
         <div className="card bills-form-card">
           <div className="section-heading">
             <h3>Select Service</h3>
@@ -935,9 +936,25 @@ export default function BillsPage() {
           </button>
         </div>
 
-        <div className="card history-card">
-          <div className="section-heading history-heading-row">
-            <h3><History size={16} /> Recent Bills</h3>
+        <div className={`card history-dropdown-card ${historyDropdownOpen ? "is-open" : ""}`}>
+          <div className="history-dropdown-header">
+            <button
+              type="button"
+              className="history-dropdown-trigger"
+              aria-expanded={historyDropdownOpen}
+              onClick={() => setHistoryDropdownOpen(prev => !prev)}
+            >
+              <span className="history-trigger-left">
+                <History size={16} />
+                <span>Recent Bills</span>
+                <span className="history-count-badge">{filteredBillHistory.length}</span>
+              </span>
+              <ChevronDown
+                size={16}
+                className={`history-chevron ${historyDropdownOpen ? "rotated" : ""}`}
+              />
+            </button>
+
             <button
               type="button"
               className="sync-ledger-btn"
@@ -950,76 +967,82 @@ export default function BillsPage() {
             </button>
           </div>
 
-          <div className="recent-bills-list no-scrollbar">
-            {filteredBillHistory.length > 0 ? (
-              filteredBillHistory.map((tx, idx) => {
-                const txKey = getTxKey(tx, idx);
-                const meta = parseTxMetadata(tx.metadata);
-                const title = formatBillTitle(tx);
-                const txRef = tx.reference || tx.ref || tx.id || `BILL-${idx}`;
-                const txAmount = Number(tx.amount || 0);
-                const txDate = new Date(tx.created_at || Date.now()).toLocaleDateString();
-                const isSummaryOpen = openSummaryKey === txKey;
+          <div className={`history-dropdown-collapse ${historyDropdownOpen ? "is-open" : ""}`}>
+            <div className="history-dropdown-inner">
+              <div className="recent-bills-list no-scrollbar">
+                {filteredBillHistory.length > 0 ? (
+                  filteredBillHistory.map((tx, idx) => {
+                    const txKey = getTxKey(tx, idx);
+                    const meta = parseTxMetadata(tx.metadata);
+                    const title = formatBillTitle(tx);
+                    const txRef = tx.reference || tx.ref || tx.id || `BILL-${idx}`;
+                    const txAmount = Number(tx.amount || 0);
+                    const txDate = new Date(tx.created_at || Date.now()).toLocaleDateString();
+                    const isSummaryOpen = openSummaryKey === txKey;
 
-                return (
-                  <div className="recent-bill-item" key={txKey}>
-                    <div className="recent-bill-main">
-                      <div className="bill-item-info">
-                        <strong>{title}</strong>
-                        <span>{txRef} · {txDate}</span>
-                      </div>
-                      <div className="bill-item-right">
-                        <strong>₦{txAmount.toLocaleString()}</strong>
-                        <span className={`status-pill ${tx.status || "Successful"}`}>{tx.status || "Successful"}</span>
-                      </div>
-                    </div>
-
-                    <div className="recent-bill-actions">
-                      <button
-                        type="button"
-                        className={`tx-summary-btn ${isSummaryOpen ? "active" : ""}`}
-                        onClick={() => setOpenSummaryKey(prev => (prev === txKey ? null : txKey))}
-                      >
-                        <FileText size={11} /> <span>Summary</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="tx-invoice-btn"
-                        onClick={() => handleDownloadBillInvoice(tx, txKey)}
-                      >
-                        {downloadedInvoiceKey === txKey ? (
-                          <>
-                            <Check size={11} /> <span>Saved</span>
-                          </>
-                        ) : (
-                          <>
-                            <Download size={11} /> <span>CardNEXT Invoice</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-
-                    {isSummaryOpen && (
-                      <div className="tx-summary-box">
-                        <div className="tx-summary-top">
-                          <span>Transaction Summary</span>
-                          <code>{txRef}</code>
+                    return (
+                      <div className="recent-bill-item" key={txKey}>
+                        <div className="recent-bill-main">
+                          <div className="bill-item-info">
+                            <strong>{title}</strong>
+                            <span>{txRef} · {txDate}</span>
+                          </div>
+                          <div className="bill-item-right">
+                            <strong>₦{txAmount.toLocaleString()}</strong>
+                            <span className={`status-pill ${tx.status || "Successful"}`}>{tx.status || "Successful"}</span>
+                          </div>
                         </div>
-                        <p>
-                          <b>{title}</b> for account <code>{meta.customerId || "N/A"}</code> was{" "}
-                          <b>{tx.status || "completed"}</b> on <b>{txDate}</b>, debiting{" "}
-                          <b>₦{txAmount.toLocaleString()}</b> from your CardNext wallet.
-                        </p>
+
+                        <div className="recent-bill-actions">
+                          <button
+                            type="button"
+                            className={`tx-summary-btn ${isSummaryOpen ? "active" : ""}`}
+                            onClick={() => setOpenSummaryKey(prev => (prev === txKey ? null : txKey))}
+                          >
+                            <FileText size={11} /> <span>Summary</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="tx-invoice-btn"
+                            onClick={() => handleDownloadBillInvoice(tx, txKey)}
+                          >
+                            {downloadedInvoiceKey === txKey ? (
+                              <>
+                                <Check size={11} /> <span>Saved</span>
+                              </>
+                            ) : (
+                              <>
+                                <Download size={11} /> <span>CardNEXT Invoice</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+
+                        <div className={`tx-summary-collapse ${isSummaryOpen ? "is-open" : ""}`}>
+                          <div className="tx-summary-collapse-inner">
+                            <div className="tx-summary-box">
+                              <div className="tx-summary-top">
+                                <span>Transaction Summary</span>
+                                <code>{txRef}</code>
+                              </div>
+                              <p>
+                                <b>{title}</b> for account <code>{meta.customerId || "N/A"}</code> was{" "}
+                                <b>{tx.status || "completed"}</b> on <b>{txDate}</b>, debiting{" "}
+                                <b>₦{txAmount.toLocaleString()}</b> from your CardNext wallet.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    )}
+                    );
+                  })
+                ) : (
+                  <div className="empty-bills-state">
+                    No recent utility transactions.
                   </div>
-                );
-              })
-            ) : (
-              <div className="empty-bills-state">
-                No recent utility transactions.
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>
@@ -1104,13 +1127,27 @@ export default function BillsPage() {
         .banner-wallet-preview small { display: block; color: #fcefe3; font-size: 9.5px; text-transform: uppercase; font-weight: 750; margin-bottom: 2px; opacity: 0.85; }
         .banner-wallet-preview h3 { margin: 0; font-size: 18px; font-weight: 900; color: #ffffff; font-variant-numeric: tabular-nums; }
 
-        .bills-grid-layout { display: grid; grid-template-columns: 1.25fr 0.75fr; gap: 20px; }
-        @media (max-width: 950px) { .bills-grid-layout { grid-template-columns: 1fr; } }
+        .bills-stack-layout { display: flex; flex-direction: column; gap: 18px; width: 100%; }
 
-        .bills-form-card, .history-card { background: #ffffff; border: 1px solid #e8dfd3; border-radius: 20px; padding: 22px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 8px 25px rgba(93, 53, 19, 0.04); box-sizing: border-box; }
+        .bills-form-card { width: 100%; background: #ffffff; border: 1px solid #e8dfd3; border-radius: 20px; padding: 24px 26px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 8px 25px rgba(93, 53, 19, 0.04); box-sizing: border-box; }
         .section-heading h3 { margin: 0; font-size: 13.5px; font-weight: 800; color: #2b1b12; display: flex; align-items: center; gap: 7px; }
-        .history-heading-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-        .sync-ledger-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px; border-radius: 8px; border: 1px solid #e8dfd3; background: #fcfaf7; color: #5d3513; font-size: 10.5px; font-weight: 750; cursor: pointer; transition: 0.15s; }
+
+        .history-dropdown-card { width: 100%; background: #ffffff; border: 1px solid #e8dfd3; border-radius: 18px; padding: 14px 18px; box-shadow: 0 8px 25px rgba(93, 53, 19, 0.04); box-sizing: border-box; transition: border-color 0.22s ease, box-shadow 0.22s ease; }
+        .history-dropdown-card.is-open { border-color: #d6c3ab; box-shadow: 0 12px 28px rgba(93, 53, 19, 0.07); }
+
+        .history-dropdown-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .history-dropdown-trigger { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px; background: transparent; border: 0; padding: 4px 2px; color: #2b1b12; font-size: 13.5px; font-weight: 800; cursor: pointer; text-align: left; }
+        .history-trigger-left { display: inline-flex; align-items: center; gap: 8px; }
+        .history-count-badge { background: #f6efe6; color: #5d3513; border: 1px solid #e5d6c3; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 999px; font-variant-numeric: tabular-nums; }
+        .history-chevron { color: #6e594a; transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1); flex-shrink: 0; }
+        .history-chevron.rotated { transform: rotate(180deg); color: #5d3513; }
+
+        .history-dropdown-collapse { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.26s ease; }
+        .history-dropdown-collapse.is-open { grid-template-rows: 1fr; opacity: 1; }
+        .history-dropdown-inner { overflow: hidden; }
+        .history-dropdown-collapse.is-open .history-dropdown-inner { padding-top: 12px; }
+
+        .sync-ledger-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; border-radius: 8px; border: 1px solid #e8dfd3; background: #fcfaf7; color: #5d3513; font-size: 10.5px; font-weight: 750; cursor: pointer; transition: 0.15s; flex-shrink: 0; }
         .sync-ledger-btn:hover:not(:disabled) { background: #f5efe6; border-color: #cbb9a3; }
         .sync-ledger-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
@@ -1168,7 +1205,7 @@ export default function BillsPage() {
         .pay-bill-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
         .recent-bills-list { display: flex; flex-direction: column; gap: 8px; max-height: 440px; overflow-y: auto; }
-        .empty-bills-state { text-align: center; padding: 32px 14px; color: #8c6f56; font-size: 11.5px; }
+        .empty-bills-state { text-align: center; padding: 26px 14px; color: #8c6f56; font-size: 11.5px; }
         .recent-bill-item { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid #e8dfd3; border-radius: 12px; background: #fcfaf7; transition: 0.2s; box-sizing: border-box; }
         .recent-bill-item:hover { border-color: #cbb9a3; background: #f7f3ed; }
         .recent-bill-main { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -1188,6 +1225,10 @@ export default function BillsPage() {
         .tx-summary-btn:hover, .tx-summary-btn.active { background: #fdf5ef; border-color: #5d3513; color: #5d3513; }
         .tx-invoice-btn { background: #fdf5ef; border-color: #e2cbb5; color: #5d3513; }
         .tx-invoice-btn:hover { background: #5d3513; border-color: #5d3513; color: #fff; }
+
+        .tx-summary-collapse { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 0.25s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease; }
+        .tx-summary-collapse.is-open { grid-template-rows: 1fr; opacity: 1; }
+        .tx-summary-collapse-inner { overflow: hidden; }
 
         .tx-summary-box { background: #fff; border: 1px solid #e6ddd0; border-radius: 9px; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
         .tx-summary-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: #5d3513; }
@@ -1227,8 +1268,10 @@ export default function BillsPage() {
           .banner-wallet-preview small { font-size: 8px; }
           .banner-wallet-preview h3 { font-size: 13.5px; }
 
-          .bills-grid-layout { gap: 8px; }
-          .bills-form-card, .history-card { padding: 12px; border-radius: 13px; gap: 11px; }
+          .bills-stack-layout { gap: 8px; }
+          .bills-form-card { padding: 12px; border-radius: 13px; gap: 11px; }
+          .history-dropdown-card { padding: 10px 12px; border-radius: 13px; }
+          .history-dropdown-trigger { font-size: 12px; }
           .section-heading h3 { font-size: 12px; }
 
           .category-tabs { gap: 5px; }
